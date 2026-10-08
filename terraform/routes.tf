@@ -34,7 +34,7 @@ resource "aws_route" "app_nat" {
 
   route_table_id         = aws_route_table.application[each.key].id
   destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_nat_gateway.main[each.key].id
+  nat_gateway_id         = aws_nat_gateway.main[each.key].id
 }
 
 resource "aws_route_table_association" "application" {
