@@ -1,8 +1,8 @@
 resource "aws_alb" "main" {
-  name = "${local.name_prefix}-alb"
-  internal = false
+  name               = "${local.name_prefix}-alb"
+  internal           = false
   load_balancer_type = "application"
-  ip_address_type = "ipv4"
+  ip_address_type    = "ipv4"
 
   security_groups = [aws_security_group.alb.id]
 

@@ -1,12 +1,12 @@
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_alb.main.id
-  port = 443
-  protocol = "HTTPS"
-  ssl_policy = "ELBSecurityPolicy-TLS13-1-2-2021-06"
-  certificate_arn = var.acm_certificate_arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = var.acm_certificate_arn
 
   default_action {
-    type = "forward"
+    type             = "forward"
     target_group_arn = aws_lb_target_group.api.arn
   }
 
@@ -17,15 +17,15 @@ resource "aws_lb_listener" "https" {
 
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_alb.main.arn
-  port = 80
-  protocol = "HTTP"
+  port              = 80
+  protocol          = "HTTP"
 
   default_action {
     type = "redirect"
 
     redirect {
-      port = 443
-      protocol = "HTTPS"
+      port        = 443
+      protocol    = "HTTPS"
       status_code = "HTTP_301"
     }
   }
