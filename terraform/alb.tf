@@ -23,3 +23,24 @@ resource "aws_alb" "main" {
     aws_route_table_association.public
   ]
 }
+
+resource "aws_lb_listener_rule" "ws" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.ws.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/ws", "/ws/*"]
+    }
+  }
+
+  tags = {
+    Name        = "${local.name_prefix}-ws-listener-rule"
+    environment = "prod"
+  }
+}
