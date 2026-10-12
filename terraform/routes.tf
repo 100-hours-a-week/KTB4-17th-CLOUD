@@ -7,15 +7,15 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route" "public_internet" {
-  route_table_id = aws_route_table.public.id
+  route_table_id         = aws_route_table.public.id
   destination_cidr_block = "0.0.0.0/0"
-  gateway_id = aws_internet_gateway.main.id
+  gateway_id             = aws_internet_gateway.main.id
 }
 
 resource "aws_route_table_association" "public" {
   for_each = local.zones
 
-  subnet_id = aws_subnet.public[each.key].id
+  subnet_id      = aws_subnet.public[each.key].id
   route_table_id = aws_route_table.public.id
 }
 
@@ -32,15 +32,15 @@ resource "aws_route_table" "application" {
 resource "aws_route" "app_nat" {
   for_each = local.zones
 
-  route_table_id = aws_route_table.application[each.key].id
+  route_table_id         = aws_route_table.application[each.key].id
   destination_cidr_block = "0.0.0.0/0"
-  gateway_id = aws_nat_gateway.main[each.key].id
+  nat_gateway_id         = aws_nat_gateway.main[each.key].id
 }
 
 resource "aws_route_table_association" "application" {
   for_each = local.zones
 
-  subnet_id = aws_subnet.application[each.key].id
+  subnet_id      = aws_subnet.application[each.key].id
   route_table_id = aws_route_table.application[each.key].id
 }
 
@@ -57,6 +57,6 @@ resource "aws_route_table" "data" {
 resource "aws_route_table_association" "data" {
   for_each = local.zones
 
-  subnet_id = aws_subnet.data[each.key].id
+  subnet_id      = aws_subnet.data[each.key].id
   route_table_id = aws_route_table.data[each.key].id
 }

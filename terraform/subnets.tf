@@ -1,9 +1,9 @@
 resource "aws_subnet" "public" {
   for_each = local.zones
 
-  vpc_id = aws_vpc.main.id
-  availability_zone = each.value.az
-  cidr_block = each.value.public_cidr
+  vpc_id                  = aws_vpc.main.id
+  availability_zone       = each.value.az
+  cidr_block              = each.value.public_cidr
   map_public_ip_on_launch = false
 
   tags = {
@@ -14,9 +14,9 @@ resource "aws_subnet" "public" {
 resource "aws_subnet" "application" {
   for_each = local.zones
 
-  vpc_id = aws_vpc.main.id
-  availability_zone = each.value.az
-  cidr_block = each.value.app_cidr
+  vpc_id                  = aws_vpc.main.id
+  availability_zone       = each.value.az
+  cidr_block              = each.value.app_cidr
   map_public_ip_on_launch = false
 
   tags = {
@@ -27,12 +27,12 @@ resource "aws_subnet" "application" {
 resource "aws_subnet" "data" {
   for_each = local.zones
 
-  vpc_id = aws_vpc.main.id
-  availability_zone = each.value.az
-  cidr_block = each.value.data_cidr
+  vpc_id                  = aws_vpc.main.id
+  availability_zone       = each.value.az
+  cidr_block              = each.value.data_cidr
   map_public_ip_on_launch = false
 
   tags = {
-    Name = "${local.name_prefix.}-data-${each.key}"
+    Name = "${local.name_prefix}-data-${each.key}"
   }
 }
