@@ -56,21 +56,29 @@ resource "aws_iam_role" "ecs_task" {
 }
 
 resource "aws_iam_role_policy" "ecs_execution_secrets" {
-  count = length(var.be_secrets) > 0 ? 1 : 0
+  count = 1
 
   name = "${local.name_prefix}-ecs-execution-secrets"
   role = aws_iam_role.ecs_execution.id
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      for value_from in values(var.be_secrets) : {
+    Statement = concat(
+      length(var.be_environment) > 0 ? [{
+        Effect   = "Allow"
+        Action   = ["ssm:GetParameters"]
+        Resource = [for parameter in aws_ssm_parameter.be_config : parameter.arn]
+      }] : [],
+      [{
         Effect = "Allow"
-        Action = startswith(value_from, "arn:aws:secretsmanager:") ? ["secretsmanager:GetSecretValue"] : ["ssm:GetParameters"]
-        # Secrets Manager의 JSON key/version 선택자는 IAM 리소스 ARN에서 제외한다.
-        Resource = startswith(value_from, "arn:aws:secretsmanager:") ? join(":", slice(split(":", value_from), 0, 7)) : value_from
-      }
-    ]
+        Action = ["secretsmanager:GetSecretValue"]
+        # JSON key/version 선택자는 IAM 리소스 ARN에서 제외한다.
+        Resource = distinct([
+          for value_from in values(local.be_secret_references) :
+          join(":", slice(split(":", value_from), 0, 7))
+        ])
+      }]
+    )
   })
 }
 
@@ -178,6 +186,45 @@ resource "aws_iam_role_policy" "service_execution_secret_kms" {
   })
 }
 
+locals {
+  be_secret_environment_names = [
+    "DB_PASSWORD",
+    "JWT_SECRET",
+    "CLIENT_SECRET",
+    "AI_PRACTICE_API_KEY",
+    "AI_PRACTICE_CALLBACK_SECRET"
+  ]
+
+  # 기존 Secrets Manager ARN을 be_secrets로 지정하면 해당 항목을 외부 Secret으로 대체한다.
+  be_secret_references = merge(
+    {
+      for name in local.be_secret_environment_names :
+      name => "${aws_secretsmanager_secret.be.arn}:${name}::"
+    },
+    var.be_secrets
+  )
+
+  be_environment_references = merge(
+    { for name, parameter in aws_ssm_parameter.be_config : name => parameter.arn },
+    local.be_secret_references
+  )
+}
+
+# 업로드/다운로드 presigned URL과 파일 정리는 앱의 Task Role로 수행한다.
+resource "aws_iam_role_policy" "be_s3" {
+  name = "${local.name_prefix}-be-s3"
+  role = aws_iam_role.ecs_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+      Resource = "${aws_s3_bucket.image.arn}/*"
+    }]
+  })
+}
+
 resource "aws_ecs_task_definition" "be" {
   family                   = "${local.name_prefix}-be"
   requires_compatibilities = ["FARGATE"]
@@ -205,15 +252,8 @@ resource "aws_ecs_task_definition" "be" {
         appProtocol   = "http"
       }]
 
-      environment = [
-        for name, value in var.be_environment : {
-          name  = name
-          value = value
-        }
-      ]
-
       secrets = [
-        for name, value_from in var.be_secrets : {
+        for name, value_from in local.be_environment_references : {
           name      = name
           valueFrom = value_from
         }
@@ -229,7 +269,9 @@ resource "aws_ecs_task_definition" "be" {
   depends_on = [
     aws_iam_role_policy_attachment.ecs_execution,
     aws_iam_role_policy.ecs_execution_secrets,
-    aws_iam_role_policy.ecs_execution_secret_kms
+    aws_iam_role_policy.ecs_execution_secret_kms,
+    aws_iam_role_policy.be_s3,
+    aws_secretsmanager_secret_version.be
   ]
 }
 
