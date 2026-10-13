@@ -36,23 +36,71 @@ variable "be_desired_count" {
 }
 
 variable "be_environment" {
-  description = "Non-sensitive backend environment variables"
+  description = "Non-sensitive backend config values to create as SSM String parameters and inject into ECS"
   type        = map(string)
   default     = {}
+
+  validation {
+    condition     = alltrue([for value in values(var.be_environment) : length(value) > 0])
+    error_message = "SSM String config values cannot be empty. Fill the production DB_URL and DB_USERNAME before applying."
+  }
+
+  validation {
+    condition = alltrue([
+      for name in keys(var.be_environment) :
+      !contains(["DB_PASSWORD", "JWT_SECRET", "CLIENT_SECRET", "AI_PRACTICE_API_KEY", "AI_PRACTICE_CALLBACK_SECRET"], name)
+    ])
+    error_message = "Secret values must be supplied through be_secret_values or existing Secrets Manager ARNs, not be_environment."
+  }
 }
 
 variable "be_secrets" {
-  description = "Backend environment variable names mapped to existing Secrets Manager or SSM parameter ARNs"
+  description = "Optional existing Secrets Manager ARN references that override individual backend JSON secret items"
   type        = map(string)
   default     = {}
 
   validation {
     condition = alltrue([
       for value_from in values(var.be_secrets) :
-      can(regex("^arn:aws:secretsmanager:[^:]+:[0-9]{12}:secret:[^:]+(:[^:]*){0,3}$", value_from)) ||
-      can(regex("^arn:aws:ssm:[^:]+:[0-9]{12}:parameter/.+$", value_from))
+      can(regex("^arn:aws:secretsmanager:[^:]+:[0-9]{12}:secret:[^:]+(:[^:]*){0,3}$", value_from))
     ])
-    error_message = "be_secrets values must be full Secrets Manager or SSM parameter ARNs, not secret values."
+    error_message = "be_secrets values must be full Secrets Manager ARNs, optionally with JSON key/version selectors."
+  }
+}
+
+# 실제 값은 TF_VAR_be_secret_values 또는 Terraform 실행 시 입력으로만 전달한다.
+# ephemeral 값은 write-only 필드에만 전달되어 plan/state에 저장되지 않는다.
+variable "be_secret_values" {
+  description = "Runtime-only backend secret values; do not put these values in tracked tfvars files"
+  type = object({
+    DB_PASSWORD                 = optional(string, "")
+    JWT_SECRET                  = string
+    CLIENT_SECRET               = string
+    AI_PRACTICE_API_KEY         = optional(string, "")
+    AI_PRACTICE_CALLBACK_SECRET = optional(string, "")
+  })
+  sensitive = true
+  ephemeral = true
+
+  validation {
+    condition     = length(var.be_secret_values.JWT_SECRET) > 0 && length(var.be_secret_values.CLIENT_SECRET) > 0
+    error_message = "JWT_SECRET and CLIENT_SECRET must be provided as non-empty runtime secret inputs."
+  }
+
+  validation {
+    condition     = length(var.be_secret_values.DB_PASSWORD) > 0 || contains(keys(var.be_secrets), "DB_PASSWORD")
+    error_message = "Provide the production DB_PASSWORD at runtime, or reference an existing Secrets Manager ARN in be_secrets."
+  }
+}
+
+variable "be_secret_version" {
+  description = "Increase this integer when updating the backend secret values"
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.be_secret_version >= 1 && floor(var.be_secret_version) == var.be_secret_version
+    error_message = "be_secret_version must be a positive integer."
   }
 }
 
