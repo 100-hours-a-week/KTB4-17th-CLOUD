@@ -1,0 +1,51 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CreateStar23ProductionNamespace",
+      "Effect": "Allow",
+      "Action": [
+        "servicediscovery:CreateHttpNamespace",
+        "servicediscovery:TagResource"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-northeast-2",
+          "aws:RequestTag/Name": "star23-prod",
+          "aws:RequestTag/environment": "prod"
+        }
+      }
+    },
+    {
+      "Sid": "ManageProjectNamespaces",
+      "Effect": "Allow",
+      "Action": [
+        "servicediscovery:GetNamespace",
+        "servicediscovery:UpdateHttpNamespace",
+        "servicediscovery:DeleteNamespace",
+        "servicediscovery:TagResource",
+        "servicediscovery:UntagResource",
+        "servicediscovery:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:servicediscovery:ap-northeast-2:975779326240:namespace/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Name": "star23-prod",
+          "aws:ResourceTag/environment": "prod"
+        }
+      }
+    },
+    {
+      "Sid": "ReadNamespaceOperationsInSeoul",
+      "Effect": "Allow",
+      "Action": "servicediscovery:GetOperation",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-northeast-2"
+        }
+      }
+    }
+  ]
+}
