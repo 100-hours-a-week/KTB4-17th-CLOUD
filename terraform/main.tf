@@ -32,6 +32,21 @@ module "alb" {
   acm_certificate_arn   = var.acm_certificate_arn
 }
 
+module "database" {
+  source = "./modules/database"
+
+  name_prefix             = local.name_prefix
+  vpc_version             = local.version
+  data_subnet_ids         = module.network.data_subnet_ids
+  mysql_security_group_id = module.network.mysql_security_group_id
+  mysql_port              = local.mysql_port
+  mysql_username          = var.mysql_username
+
+  postgres_security_group_id = module.network.postgres_security_group_id
+  postgres_port              = local.postgres_port
+  postgres_username          = var.postgres_username
+}
+
 module "storage" {
   source = "./modules/storage"
 }

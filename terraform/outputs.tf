@@ -17,3 +17,23 @@ output "additional_ecs_security_group_ids" {
   description = "Security groups for the separately deployed WS and AI services"
   value       = module.network.additional_ecs_security_group_ids
 }
+
+output "mysql_address" {
+  description = "MySQL hostname in the application VPC"
+  value       = module.database.mysql_address
+}
+
+output "mysql_master_user_secret_arn" {
+  description = "Secrets Manager secret holding the MySQL master credentials"
+  value       = module.database.mysql_master_user_secret_arn
+}
+
+output "postgres_address" {
+  description = "PostgreSQL hostname in the application VPC"
+  value       = module.database.postgres_address
+}
+
+output "postgres_master_user_secret_arn" {
+  description = "Secrets Manager secret holding the PostgreSQL master credentials"
+  value       = module.database.postgres_master_user_secret_arn
+}
