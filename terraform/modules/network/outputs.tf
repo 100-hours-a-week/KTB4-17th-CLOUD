@@ -79,3 +79,30 @@ output "v1_database_peering_connection_id" {
     aws_vpc_security_group_ingress_rule.v1_database_from_ecs,
   ]
 }
+
+output "data_subnet_ids" {
+  description = "Private data subnets, ordered by zone key and ready for the DB subnet group."
+  value       = [for key in sort(keys(var.zones)) : aws_subnet.data[key].id]
+
+  depends_on = [aws_route_table_association.data]
+}
+
+output "mysql_security_group_id" {
+  description = "MySQL security group with ingress rules from the ECS services."
+  value       = aws_security_group.mysql.id
+
+  depends_on = [
+    aws_vpc_security_group_ingress_rule.mysql_from_app,
+    aws_vpc_security_group_ingress_rule.additional_ecs_database,
+  ]
+}
+
+output "postgres_security_group_id" {
+  description = "PostgreSQL security group with ingress rules from the ECS services."
+  value       = aws_security_group.postgres.id
+
+  depends_on = [
+    aws_vpc_security_group_ingress_rule.postgres_from_app,
+    aws_vpc_security_group_ingress_rule.additional_ecs_database,
+  ]
+}
