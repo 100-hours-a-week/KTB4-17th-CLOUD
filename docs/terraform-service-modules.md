@@ -59,7 +59,7 @@ WS task/service/IAM/log만 enable 조건을 따른다.
 steady source만으로 prod plan을 성공이라고 주장할 수 없다.
 
 `terraform fmt -check -recursive terraform`, 두 runnable root의 `terraform validate`,
-`python3 -m unittest discover -s tests -v` (18개)가 통과했다. 테스트는 모든 AWS write와
+`python3 -m unittest discover -s tests -v` (23개)가 통과했다. 테스트는 모든 AWS write와
 양방향 replacement, 불완전/errored/deferred plan, 임의/누락/ID 불일치 state 동작,
 이동 전·후 ID와 unknown ID, action/deferred-action invocation 차단,
 중복 주소, private 값 비출력, backend 경계, CI revision 소유권과 migration 블록 부재를 검사한다.
@@ -67,9 +67,33 @@ steady source만으로 prod plan을 성공이라고 주장할 수 없다.
 정확한 imports/forget/moves 전체 집합이 일치해야 한다. 각 move는 검증한 원본
 state의 기존 ID를 manifest에 저장하고 plan의 before.id와 after.id 양쪽과 대조한다.
 `tests/test_dependency_graph.py`는 `terraform graph -type=plan`의 실제 그래프에서
-전체 선행 경로, 모든 BE 비서비스 리소스의 AI 독립성, 비순환성을 검사한다.
-필수 edge를 제거하거나 BE 모듈 전체에 AI 의존성을 추가한 그래프가 거절되는지도 검사한다.
-이 그래프 검증은 현재 객체의 no-op 여부에 기대지 않아 최초 생성/복구 순서를 검증한다.
+Secret → version → AI task/service → BE service 경로와 아래 네트워크 준비 경로를 검사한다.
+
+| 복구 범위 | 실제 선행 조건 | 소비 노드 |
+| --- | --- | --- |
+| BE 자체 outbound | `module.be.aws_vpc_security_group_egress_rule.app_outbound_rule` | BE ECS service만 |
+| network ALB SG 출력 | network 소유 `alb_http`, `alb_https` | SG 출력 → ALB 및 기존 listener 경로 |
+| BE root 연결 | `alb_to_app`, `app_from_alb`, `mysql_from_app`, `postgres_from_app`, `ai_from_be`, 설정된 BE V1 DB ingress | BE ECS service만 |
+| WS root 연결 | `ws_from_alb`, `alb_to_ws`, `ai_from_ws`, 설정된 WS DB/V1 DB ingress | WS ECS service만 |
+| AI root 연결 | `ai_from_be`, `ai_from_ws`, 설정된 AI DB/V1 DB ingress | AI ECS service만 |
+
+서비스별 `traffic_rule_ids`는 root가 해당 서비스의 규칙 ID만 선택해 전달하는 완료 토큰이다.
+새 리소스나 모듈 전체 `depends_on`을 만들지 않는다. 기존 DB 규칙의 for_each 주소를 유지하며,
+조건부 규칙이 없으면 빈 목록을 전달한다. Secret/config/task/SG/IAM/log는 이 입력을 기다리지 않는다.
+WS에 HTTP listener 또는 AI service 대기를 추가하지 않는다.
+
+실제 그래프에서 각 필수 edge를 제거한 음성 검사, 소스를 임시 사본에서 되돌려 Terraform이
+다시 만든 여섯 그래프(BE outbound, ALB ingress 각각, 서비스별 root 입력 각각)의 거절,
+모듈 전체 gate·순환의 거절을 확인한다. 모든 BE 비서비스 리소스는 AI service와 독립적이다.
+조건부 DB/V1 입력은 V1 유무 × WS/AI의 모든 MySQL/PostgreSQL 부분집합 × 세 서비스,
+총 96개 결과를 실제 root 표현식으로 Terraform console에서 평가한다.
+현재 객체의 no-op 여부에 기대지 않는 생성/복구 순서 검증이다.
+
+네트워크 복구 최종 소스로 전체 refresh plan을 **2026-11-03T11:51:07Z (prod),
+2026-11-03T11:50:55Z (Loki)** 에 새로 생성했다. 위 표의 action 집계와 정확한
+94 move/7 import/2 forget 주소·ID는 기존 검토 manifest와 동일하다. 최종 `.tf` 전체의
+SHA-256을 private 사본과 대조했으며, 새 graph/source snapshot/plan 및 전후 remote snapshot은
+`service-modules-private/network-readiness/`에만 보관한다. 이전 plan을 새 증거로 재사용하지 않았다.
 
 운영과 별도 Loki 및 세 staging state를 읽어 import 대상의 중복 managed 소유권이
 없음을 재확인했다. prod serial 29, Loki serial 4이며, 검증 전후 state bytes와
