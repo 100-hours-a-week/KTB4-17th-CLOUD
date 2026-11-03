@@ -1,15 +1,3 @@
-# WS Task Definition과 Service. 리비전 배포는 CD가 담당한다.
-
-moved {
-  from = aws_ecs_task_definition.ws
-  to   = aws_ecs_task_definition.ws[0]
-}
-
-moved {
-  from = aws_ecs_service.ws
-  to   = aws_ecs_service.ws[0]
-}
-
 resource "aws_ecs_task_definition" "ws" {
   count = var.ws_enabled ? 1 : 0
 
@@ -18,8 +6,8 @@ resource "aws_ecs_task_definition" "ws" {
   network_mode             = "awsvpc"
   cpu                      = "1024"
   memory                   = "2048"
-  execution_role_arn       = aws_iam_role.service_execution["ws"].arn
-  task_role_arn            = aws_iam_role.service_task["ws"].arn
+  execution_role_arn       = module.runtime.execution_role_arn
+  task_role_arn            = module.runtime.task_role_arn
 
   runtime_platform {
     operating_system_family = "LINUX"
@@ -37,7 +25,7 @@ resource "aws_ecs_task_definition" "ws" {
     logConfiguration = {
       logDriver = "awslogs"
       options = {
-        "awslogs-group"         = aws_cloudwatch_log_group.service["ws"].name
+        "awslogs-group"         = module.runtime.log_group_name
         "awslogs-region"        = data.aws_region.current.region
         "awslogs-stream-prefix" = "ecs"
       }
@@ -66,23 +54,17 @@ resource "aws_ecs_task_definition" "ws" {
 
   tags = {
     Name        = "${var.name_prefix}-ws-task"
-    environment = "prod"
+    environment = var.environment
   }
 
-  depends_on = [
-    aws_iam_role_policy_attachment.service_execution,
-    aws_iam_role_policy.service_execution_secrets,
-    aws_iam_role_policy.service_execution_secret_kms,
-    aws_iam_role_policy.ws_s3,
-    aws_secretsmanager_secret_version.be,
-  ]
+  depends_on = [aws_iam_role_policy.ws_s3]
 }
 
 resource "aws_ecs_service" "ws" {
   count = var.ws_enabled ? 1 : 0
 
   name                  = "${var.name_prefix}-ws-service"
-  cluster               = aws_ecs_cluster.main.id
+  cluster               = var.cluster_id
   task_definition       = aws_ecs_task_definition.ws[0].arn
   launch_type           = "FARGATE"
   platform_version      = "LATEST"
@@ -101,9 +83,9 @@ resource "aws_ecs_service" "ws" {
   }
 
   network_configuration {
-    subnets = var.application_subnet_ids
+    subnets = var.subnet_ids
 
-    security_groups  = [var.additional_ecs_security_group_ids["ws"]]
+    security_groups  = [module.runtime.security_group_id]
     assign_public_ip = false
   }
 
@@ -118,13 +100,13 @@ resource "aws_ecs_service" "ws" {
 
     content {
       enabled   = true
-      namespace = aws_service_discovery_http_namespace.ecs.arn
+      namespace = var.namespace_arn
     }
   }
 
   tags = {
     Name        = "${var.name_prefix}-ws-service"
-    environment = "prod"
+    environment = var.environment
   }
 
   lifecycle {

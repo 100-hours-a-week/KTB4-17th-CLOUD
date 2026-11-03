@@ -5,17 +5,17 @@ output "alb_dns_name" {
 
 output "ecs_service_names" {
   description = "Service names used by each application's CI/CD deployment"
-  value       = module.ecs.service_names
+  value       = merge({ be = module.be.service_name, ai = module.ai.service_name }, var.ws_enabled ? { ws = module.ws.service_name } : {})
 }
 
 output "ai_internal_url" {
   description = "AI URL for the BE tasks configured as Service Connect clients"
-  value       = module.ecs.ai_internal_url
+  value       = "http://ai:${var.ai_port}"
 }
 
 output "additional_ecs_security_group_ids" {
   description = "Security groups for the separately deployed WS and AI services"
-  value       = module.network.additional_ecs_security_group_ids
+  value       = { ws = module.ws.security_group_id, ai = module.ai.security_group_id }
 }
 
 output "mysql_address" {

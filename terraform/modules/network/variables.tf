@@ -33,41 +33,6 @@ variable "zones" {
   }))
 }
 
-variable "app_port" {
-  description = "Backend container port."
-  type        = number
-}
-
-variable "mysql_port" {
-  description = "MySQL connection port."
-  type        = number
-}
-
-variable "postgres_port" {
-  description = "PostgreSQL connection port."
-  type        = number
-}
-
-variable "ws_port" {
-  description = "WebSocket container port."
-  type        = number
-}
-
-variable "ai_port" {
-  description = "AI container port."
-  type        = number
-}
-
-variable "ws_database_access" {
-  description = "Databases the WebSocket service may access."
-  type        = set(string)
-}
-
-variable "ai_database_access" {
-  description = "Databases the AI service may access."
-  type        = set(string)
-}
-
 variable "v1_database_network" {
   description = "Existing v1 database network; null leaves peering and database access unmanaged."
   type = object({
@@ -84,4 +49,8 @@ variable "v1_database_network" {
     )
     error_message = "Provide the route tables actually used by the v1 database subnets."
   }
+}
+
+variable "environment" {
+  type = string
 }

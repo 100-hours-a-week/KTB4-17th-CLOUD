@@ -16,23 +16,6 @@ locals {
       ]
     ]) : route.key => route
   }
-
-  v1_database_ingress_rules = var.v1_database_network == null ? {} : merge(
-    { be-mysql = { service = "be", database = "mysql" } },
-    local.additional_ecs_database_rules,
-  )
-
-  v1_database_security_group_ids = {
-    for key, peer in local.v1_database_peers : key => {
-      mysql    = peer.mysql_security_group_id
-      postgres = peer.postgres_security_group_id
-    }
-  }
-
-  database_client_security_group_ids = merge(
-    { be = aws_security_group.app.id },
-    { for name, group in aws_security_group.ecs_service : name => group.id },
-  )
 }
 
 data "aws_vpc" "v1_database" {
@@ -49,8 +32,8 @@ resource "aws_vpc_peering_connection" "v1_database" {
   auto_accept = true
 
   tags = {
-    Name        = "${var.name_prefix}-v2-to-v1-database"
-    environment = "prod"
+    Name        = "${var.name_prefix}-${var.vpc_version}-to-v1-database"
+    environment = var.environment
   }
 
   lifecycle {
@@ -69,30 +52,11 @@ resource "aws_route" "application_to_v1_database" {
   vpc_peering_connection_id = aws_vpc_peering_connection.v1_database["v1"].id
 }
 
-# Keep existing v1 routes to other 10.1.0.0/16 VPCs: only these ECS subnets return here.
+# Preserve other VPC return routes; only these application /24 subnets return here.
 resource "aws_route" "v1_database_to_application" {
   for_each = local.v1_database_return_routes
 
   route_table_id            = each.value.route_table_id
   destination_cidr_block    = each.value.app_cidr
   vpc_peering_connection_id = aws_vpc_peering_connection.v1_database["v1"].id
-}
-
-# These rules belong to the actual v1 database SGs, not the unused SGs in the new VPC.
-resource "aws_vpc_security_group_ingress_rule" "v1_database_from_ecs" {
-  for_each = local.v1_database_ingress_rules
-
-  security_group_id            = local.v1_database_security_group_ids["v1"][each.value.database]
-  referenced_security_group_id = local.database_client_security_group_ids[each.value.service]
-  ip_protocol                  = "tcp"
-  from_port                    = local.ecs_database_settings[each.value.database].port
-  to_port                      = local.ecs_database_settings[each.value.database].port
-
-  tags = {
-    Name        = "${var.name_prefix}-v1-${each.value.database}-from-${each.value.service}"
-    environment = "prod"
-  }
-
-  # Cross-VPC security group references require an active peering connection.
-  depends_on = [aws_vpc_peering_connection.v1_database]
 }

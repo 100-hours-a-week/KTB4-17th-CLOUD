@@ -1,5 +1,3 @@
-# BE Task Definition과 Service. 리비전 배포는 CD가 담당한다.
-
 resource "aws_ecs_task_definition" "be" {
   family                   = "${var.name_prefix}-be"
   requires_compatibilities = ["FARGATE"]
@@ -23,7 +21,7 @@ resource "aws_ecs_task_definition" "be" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.service["be"].name
+          "awslogs-group"         = aws_cloudwatch_log_group.service.name
           "awslogs-region"        = data.aws_region.current.region
           "awslogs-stream-prefix" = "ecs"
         }
@@ -47,7 +45,7 @@ resource "aws_ecs_task_definition" "be" {
 
   tags = {
     Name        = "${var.name_prefix}-be-task"
-    environment = "prod"
+    environment = var.environment
   }
 
   depends_on = [
@@ -61,7 +59,7 @@ resource "aws_ecs_task_definition" "be" {
 
 resource "aws_ecs_service" "be" {
   name                  = "${var.name_prefix}-be-service"
-  cluster               = aws_ecs_cluster.main.id
+  cluster               = var.cluster_id
   task_definition       = aws_ecs_task_definition.be.arn
   launch_type           = "FARGATE"
   platform_version      = "LATEST"
@@ -80,9 +78,9 @@ resource "aws_ecs_service" "be" {
   }
 
   network_configuration {
-    subnets = var.application_subnet_ids
+    subnets = var.subnet_ids
 
-    security_groups  = [var.be_security_group_id]
+    security_groups  = [aws_security_group.app.id]
     assign_public_ip = false
   }
 
@@ -95,18 +93,16 @@ resource "aws_ecs_service" "be" {
   # BE 태스크는 Service Connect를 통해 ai라는 이름으로 AI 엔드포인트를 조회한다.
   service_connect_configuration {
     enabled   = true
-    namespace = aws_service_discovery_http_namespace.ecs.arn
+    namespace = var.namespace_arn
   }
 
   tags = {
     Name        = "${var.name_prefix}-be-service"
-    environment = "prod"
+    environment = var.environment
   }
 
   # 생성 후 리비전 업데이트는 CI/CD가 담당한다. Terraform이 배포된 버전을 되돌리지 않도록 한다.
   lifecycle {
     ignore_changes = [task_definition]
   }
-
-  depends_on = [aws_ecs_service.ai]
 }

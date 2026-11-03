@@ -1,28 +1,38 @@
-# ECS application runtime
+# 서비스 중심 ECS 모듈
 
-BE, WebSocket, AI의 Task Definition·Service와 공통 클러스터를 관리한다.
+루트 `terraform/main.tf`가 다음 모듈을 직접 조합한다. 이 디렉터리 자체는
+실행 가능한 umbrella module이 아니다.
 
-- `main.tf`: 클러스터와 Service Connect 네임스페이스
-- `be.tf`, `ws.tf`, `ai.tf`: 서비스별 실행 정의
-- `configuration.tf`: BE의 SSM 일반 설정과 Secrets Manager 시크릿
-- `iam.tf`: Execution Role과 앱 Task Role
-- `logs.tf`: 서비스별 CloudWatch 로그 그룹과 30일 보관
-- `variables*.tf`, `outputs.tf`: 모듈 입출력
+| 경로 | 소유권 / 입력 |
+| --- | --- |
+| `cluster` | 공용 ECS cluster, Service Connect HTTP namespace |
+| `services/be` | BE task/service, 전용 SG·egress, 기존 BE IAM, 로그, SSM, 단일 공유 Secret/version |
+| `services/ws` | WS task/service, S3 정책, BE config ARN 재사용 여부와 WS config/secret 참조, 전용 runtime 호출 |
+| `services/ai` | AI task/service, AI config/secret ARN와 CI 추가 권한 참조, 전용 runtime 호출 |
+| `runtime` | WS·AI에서 재사용하는 IAM·로그·전용 SG/egress 구현; 서비스마다 별도 인스턴스 |
 
-네트워크와 ALB에서 준비된 서브넷·보안 그룹·Target Group을 입력받는다.
-Terraform 실행자와 GitHub 배포 역할은 이 모듈에서 만들지 않는다.
+각 서비스는 `subnet_ids`로 배치할 공유 subnet을 선택한다. VPC/subnet/NAT/route는
+network 소유다. ALB와 DB 및 다른 서비스에 대한 SG 연결은 루트 `connections.tf`에서
+서비스가 출력한 SG ID로 구성한다. ALB routing은 `module.alb`에만 남아 있다.
+network는 서비스 출력에 의존하지 않으므로 순환하지 않는다.
 
-Service의 `task_definition`은 최초 생성 후 CD가 관리한다.
-CPU·환경변수·역할 등 Task Definition을 수정했다면 새 리비전을 CD에 인계해야 한다.
-이미 실행 중인 Task에는 환경변수·시크릿 변경이 자동 반영되지 않는다.
+`name_prefix`와 `environment`를 모듈 입력으로 받는다. 현재 실행 루트와 backend는
+기존 prod이며, environment만 바꾸어 dev를 배포하는 구조가 아니다.
 
-BE 일반 설정은 SSM String, WS·AI 일반 설정은 Task Definition에 직접 전달한다.
-비밀값은 ARN 참조 또는 BE의 ephemeral/write-only 입력으로 전달한다.
-실제 값은 버전 관리되는 파일에 기록하지 않는다.
+BE가 공유 Secret 객체와 version을 단독 소유한다. `ai_secret_values`도 이 소유자에
+전달한다. WS는 BE의 `config_references` (SSM/Secret ARN)만 받아 자신의 참조·권한을
+만들며, AI는 `ai_secrets`에 주어진 기존 ARN만 참조한다. 다른 서비스가 Secret을
+중복 생성하거나 읽은 비밀값을 일반 Terraform 입력/출력으로 노출하지 않는다.
 
-`ws_enabled`로 독립 WS 서비스를 선택한다. `ws_use_backend_config = true`면
-BE의 SSM·Secret 설정과 S3 권한, Service Connect 클라이언트를 재사용한다.
-비활성화하면 ALB의 `/ws` 요청은 BE로 전달된다.
+실제 값은 민감한 ephemeral 입력과 write-only provider 속성으로만 전달한다.
+`be_secret_version`을 증가시켜 version을 갱신하는 작업은 이번 코드 단계에 포함하지 않는다.
 
-AI 인증값은 `ai_secret_values`의 `AI_*` 키로 같은 Secret에 저장하고,
-`ai_secrets`에서 해당 JSON 키의 ARN을 참조한다. 값을 바꿀 때는 `be_secret_version`을 올린다.
+서비스별 `ignore_changes = [task_definition]`을 유지한다. bootstrap task definition은
+Terraform 소유지만 실제 서비스의 배포 리비전은 CI/CD 소유다. 기존 execution/task
+역할 이름과 권한, 로그 경로·보관 기간, SG와 서비스 설정을 보존한다.
+
+WS 비활성화 시 task/service·IAM·로그가 비활성화된다. 기존 network 모델에서 항상
+소유했던 WS SG/egress 및 루트 연결 규칙은 계속 소유한다. 이는 staging 복원이 아니다.
+
+[검증, 전체 주소/ID 표, 미실행 state-only 절차](../../../../docs/terraform-service-modules.md)를
+검토해야 한다. 이 링크는 저장소 루트 기준으로 `docs/terraform-service-modules.md`다.

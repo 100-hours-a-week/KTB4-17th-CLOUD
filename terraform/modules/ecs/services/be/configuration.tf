@@ -3,26 +3,26 @@
 resource "aws_ssm_parameter" "be_config" {
   for_each = var.be_environment
 
-  name        = "/${var.name_prefix}/prod/be/${each.key}"
+  name        = "/${var.name_prefix}/${var.environment}/be/${each.key}"
   description = "Production backend config: ${each.key}"
   type        = "String"
   tier        = "Standard"
   value       = each.value
 
   tags = {
-    Name        = "${var.name_prefix}-prod-be-${each.key}"
-    environment = "prod"
+    Name        = "${var.name_prefix}-${var.environment}-be-${each.key}"
+    environment = var.environment
   }
 }
 
 resource "aws_secretsmanager_secret" "be" {
-  name                    = "${var.name_prefix}/prod/be"
+  name                    = "${var.name_prefix}/${var.environment}/be"
   description             = "Production backend credentials and authentication secrets"
   recovery_window_in_days = 30
 
   tags = {
-    Name        = "${var.name_prefix}-prod-be-secrets"
-    environment = "prod"
+    Name        = "${var.name_prefix}-${var.environment}-be-secrets"
+    environment = var.environment
   }
 }
 

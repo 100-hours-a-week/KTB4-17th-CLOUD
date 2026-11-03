@@ -1,3 +1,44 @@
+variable "name_prefix" {
+  description = "Existing AWS resource name prefix."
+  type        = string
+}
+variable "environment" {
+  description = "Environment label supplied by the composing root."
+  type        = string
+}
+variable "cluster_id" {
+  description = "Shared ECS cluster ID."
+  type        = string
+}
+variable "namespace_arn" {
+  description = "Shared Service Connect namespace ARN."
+  type        = string
+}
+variable "subnet_ids" {
+  description = "Selected service placement in shared network subnets."
+  type        = list(string)
+}
+variable "vpc_id" {
+  description = "VPC owning this service security group."
+  type        = string
+}
+
+variable "app_port" {
+  description = "Backend container port"
+  type        = number
+}
+variable "be_target_group_arn" {
+  description = "Backend target group attached to the ALB listeners"
+  type        = string
+}
+variable "be_repository_url" {
+  description = "Backend ECR repository URL"
+  type        = string
+}
+variable "image_bucket_arn" {
+  description = "S3 bucket ARN for backend file operations"
+  type        = string
+}
 variable "be_image_tag" {
   description = "Existing backend git SHA tag used for initial ECS creation; subsequent deployments are managed by CI/CD"
   type        = string
@@ -7,7 +48,6 @@ variable "be_image_tag" {
     error_message = "be_image_tag must be a valid, non-empty ECR image tag."
   }
 }
-
 variable "be_cpu_architecture" {
   description = "CPU architecture matching the backend image: X86_64 or ARM64"
   type        = string
@@ -18,7 +58,6 @@ variable "be_cpu_architecture" {
     error_message = "be_cpu_architecture must be X86_64 or ARM64."
   }
 }
-
 variable "be_desired_count" {
   description = "Number of backend Fargate tasks"
   type        = number
@@ -29,7 +68,6 @@ variable "be_desired_count" {
     error_message = "be_desired_count must be a non-negative integer."
   }
 }
-
 variable "be_environment" {
   description = "Non-sensitive backend config values to create as SSM String parameters and inject into ECS"
   type        = map(string)
@@ -48,7 +86,6 @@ variable "be_environment" {
     error_message = "Secret values must be supplied through be_secret_values or existing Secrets Manager ARNs, not be_environment."
   }
 }
-
 variable "be_secrets" {
   description = "Optional existing Secrets Manager ARN references that override individual backend JSON secret items"
   type        = map(string)
@@ -62,7 +99,6 @@ variable "be_secrets" {
     error_message = "be_secrets values must be full Secrets Manager ARNs, optionally with JSON key/version selectors."
   }
 }
-
 variable "be_secret_values" {
   description = "Runtime-only backend secret values; do not put these values in tracked tfvars files"
   type = object({
@@ -85,7 +121,6 @@ variable "be_secret_values" {
     error_message = "Provide the production DB_PASSWORD at runtime, or reference an existing Secrets Manager ARN in be_secrets."
   }
 }
-
 variable "be_secret_version" {
   description = "Increase this integer when updating the backend secret values"
   type        = number
@@ -96,9 +131,20 @@ variable "be_secret_version" {
     error_message = "be_secret_version must be a positive integer."
   }
 }
-
 variable "be_secret_kms_key_arns" {
   description = "Customer-managed KMS key ARNs used to encrypt the referenced backend secrets, if any"
   type        = set(string)
   default     = []
+}
+variable "ai_secret_values" {
+  description = "Runtime-only AI secrets stored as AI_* fields alongside backend secrets; never put values in tfvars."
+  type        = map(string)
+  default     = {}
+  sensitive   = true
+  ephemeral   = true
+
+  validation {
+    condition     = alltrue([for name in keys(var.ai_secret_values) : startswith(name, "AI_")])
+    error_message = "AI runtime secret keys must start with AI_ to avoid overwriting backend credentials."
+  }
 }

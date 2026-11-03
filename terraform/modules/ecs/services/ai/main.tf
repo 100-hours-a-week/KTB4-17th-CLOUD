@@ -1,13 +1,11 @@
-# AI Task Definition과 Service. 리비전 배포는 CD가 담당한다.
-
 resource "aws_ecs_task_definition" "ai" {
   family                   = "${var.name_prefix}-ai"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = "1024"
   memory                   = "2048"
-  execution_role_arn       = aws_iam_role.service_execution["ai"].arn
-  task_role_arn            = aws_iam_role.service_task["ai"].arn
+  execution_role_arn       = module.runtime.execution_role_arn
+  task_role_arn            = module.runtime.task_role_arn
 
   runtime_platform {
     operating_system_family = "LINUX"
@@ -22,7 +20,7 @@ resource "aws_ecs_task_definition" "ai" {
     logConfiguration = {
       logDriver = "awslogs"
       options = {
-        "awslogs-group"         = aws_cloudwatch_log_group.service["ai"].name
+        "awslogs-group"         = module.runtime.log_group_name
         "awslogs-region"        = data.aws_region.current.region
         "awslogs-stream-prefix" = "ecs"
       }
@@ -63,20 +61,13 @@ resource "aws_ecs_task_definition" "ai" {
 
   tags = {
     Name        = "${var.name_prefix}-ai-task"
-    environment = "prod"
+    environment = var.environment
   }
-
-  depends_on = [
-    aws_iam_role_policy_attachment.service_execution,
-    aws_iam_role_policy.service_execution_secrets,
-    aws_iam_role_policy.service_execution_secret_kms,
-    aws_secretsmanager_secret_version.be
-  ]
 }
 
 resource "aws_ecs_service" "ai" {
   name                  = "${var.name_prefix}-ai-service"
-  cluster               = aws_ecs_cluster.main.id
+  cluster               = var.cluster_id
   task_definition       = aws_ecs_task_definition.ai.arn
   launch_type           = "FARGATE"
   platform_version      = "LATEST"
@@ -94,16 +85,16 @@ resource "aws_ecs_service" "ai" {
   }
 
   network_configuration {
-    subnets = var.application_subnet_ids
+    subnets = var.subnet_ids
 
-    security_groups  = [var.additional_ecs_security_group_ids["ai"]]
+    security_groups  = [module.runtime.security_group_id]
     assign_public_ip = false
   }
 
   # BE의 Service Connect 클라이언트가 http://ai:<ai_port>로 호출한다.
   service_connect_configuration {
     enabled   = true
-    namespace = aws_service_discovery_http_namespace.ecs.arn
+    namespace = var.namespace_arn
 
     service {
       port_name      = "ai-http"
@@ -123,7 +114,7 @@ resource "aws_ecs_service" "ai" {
 
   tags = {
     Name        = "${var.name_prefix}-ai-service"
-    environment = "prod"
+    environment = var.environment
   }
 
   lifecycle {

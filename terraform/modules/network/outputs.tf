@@ -29,46 +29,8 @@ output "application_subnet_ids" {
 }
 
 output "alb_security_group_id" {
-  description = "ALB security group with listener ingress and service egress rules."
+  description = "Shared ALB security group; cross-owner egress is composed at root."
   value       = aws_security_group.alb.id
-
-  depends_on = [
-    aws_vpc_security_group_ingress_rule.alb_https,
-    aws_vpc_security_group_ingress_rule.alb_http,
-    aws_vpc_security_group_egress_rule.alb_to_app,
-    aws_vpc_security_group_egress_rule.alb_to_ws,
-  ]
-}
-
-output "be_security_group_id" {
-  description = "Backend security group with inbound, outbound, and database rules."
-  value       = aws_security_group.app.id
-
-  depends_on = [
-    aws_vpc_security_group_egress_rule.alb_to_app,
-    aws_vpc_security_group_ingress_rule.app_from_alb,
-    aws_vpc_security_group_egress_rule.app_outbound_rule,
-    aws_vpc_security_group_ingress_rule.mysql_from_app,
-    aws_vpc_security_group_ingress_rule.postgres_from_app,
-    aws_vpc_security_group_ingress_rule.ai_from_be,
-    aws_vpc_security_group_ingress_rule.ai_from_ws,
-    aws_vpc_security_group_ingress_rule.v1_database_from_ecs,
-  ]
-}
-
-output "additional_ecs_security_group_ids" {
-  description = "WebSocket and AI security groups with service and database rules."
-  value       = { for name, group in aws_security_group.ecs_service : name => group.id }
-
-  depends_on = [
-    aws_vpc_security_group_ingress_rule.ws_from_alb,
-    aws_vpc_security_group_egress_rule.alb_to_ws,
-    aws_vpc_security_group_ingress_rule.ai_from_be,
-    aws_vpc_security_group_ingress_rule.ai_from_ws,
-    aws_vpc_security_group_egress_rule.ecs_service_outbound,
-    aws_vpc_security_group_ingress_rule.additional_ecs_database,
-    aws_vpc_security_group_ingress_rule.v1_database_from_ecs,
-  ]
 }
 
 output "v1_database_peering_connection_id" {
@@ -78,7 +40,6 @@ output "v1_database_peering_connection_id" {
   depends_on = [
     aws_route.application_to_v1_database,
     aws_route.v1_database_to_application,
-    aws_vpc_security_group_ingress_rule.v1_database_from_ecs,
   ]
 }
 
@@ -90,21 +51,11 @@ output "data_subnet_ids" {
 }
 
 output "mysql_security_group_id" {
-  description = "MySQL security group with ingress rules from the ECS services."
+  description = "Shared MySQL security group; service ingress is composed at root."
   value       = aws_security_group.mysql.id
-
-  depends_on = [
-    aws_vpc_security_group_ingress_rule.mysql_from_app,
-    aws_vpc_security_group_ingress_rule.additional_ecs_database,
-  ]
 }
 
 output "postgres_security_group_id" {
-  description = "PostgreSQL security group with ingress rules from the ECS services."
+  description = "Shared PostgreSQL security group; service ingress is composed at root."
   value       = aws_security_group.postgres.id
-
-  depends_on = [
-    aws_vpc_security_group_ingress_rule.postgres_from_app,
-    aws_vpc_security_group_ingress_rule.additional_ecs_database,
-  ]
 }
