@@ -25,15 +25,20 @@ retired staging은 dev로 이름을 바꾸거나 재생성하지 않는다. 공�
 
 - `modules/ecs/cluster`: 공유 cluster/namespace.
 - `modules/ecs/services/be`: BE task/service, SG/egress, 기존 IAM, logs, SSM 및 공유 Secret/version 소유.
-- `modules/ecs/services/ws`: WS task/service, S3 정책, config/secret 참조와 BE ARN 재사용 선택; 전용 runtime 인스턴스 소유.
-- `modules/ecs/services/ai`: AI task/service, config/secret 참조와 CI 리비전용 기존 추가 secret 권한; 전용 runtime 인스턴스 소유.
-- `modules/ecs/runtime`: WS·AI의 같은 IAM/log/SG 구현만 재사용한다. task/service를 3벌 복사하거나 한 리소스 wrapper를 쌓지 않는다.
+- `modules/ecs/services/ws`: WS task/service, 전용 SG/egress·IAM·logs·S3 정책과 config/secret 참조를 서비스 폴더에서 직접 소유.
+- `modules/ecs/services/ai`: AI task/service, 전용 SG/egress·IAM·logs와 config/secret·CI 리비전 추가 secret 권한을 직접 소유.
 - `connections.tf`: 서비스/ALB/DB 간 SG edge를 단독 소유한다. 서비스 모듈 간 역참조와 network→service 순환을 만들지 않는다.
 
 root가 cluster ID/namespace ARN, 선택한 subnet IDs, ALB target group ARN,
 ECR/S3 ARN과 config 참조를 명시적으로 전달한다. shared network가 subnet을 생성하고
 서비스가 배치 입력을 선택한다. BE의 기존 AWS 역할 이름은 바꾸지 않는다.
 세 서비스 모두 CI/CD의 실제 task revision 소유권(`ignore_changes`)을 유지한다.
+BE의 `config_references` 출력은 공유 Secret/version 완료를 보장한다. AI task만
+이 출력을 의존하며, BE service만 AI의 `service_name` 출력을 의존한다.
+따라서 **Secret → version → AI task → healthy AI service → BE service** 순서다.
+기존 `wait_for_steady_state = true`와 AI 컨테이너 healthCheck를 유지한다.
+BE 모듈 전체의 AI 의존성, 순환, 인위적인 readiness 리소스는 없다.
+
 WS SG/egress와 연결 규칙은 기존 모델처럼 WS enable 여부와 별개로 소유하며,
 WS task/service/IAM/log만 enable 조건을 따른다.
 
@@ -42,7 +47,7 @@ WS task/service/IAM/log만 enable 조건을 따른다.
 2026-11-03, account `975779326240`, IAM user `noel`, Seoul region으로 다시 조회했다.
 기존 private 입력을 재사용하고, state가 가리키는 실제 Secret version을 다시 읽어
 권한 제한 파일의 ephemeral 입력으로만 전달했다. dummy secret이나 refresh 생략,
-`-target`을 사용하지 않았다. provider는 기존 lock의 AWS 6.71.0이다.
+`-target`을 사용하지 않았다. provider는 기존 lock의 AWS 6.71.0이다. 아래 결과는 리뷰 교정 최종 소스로 다시 생성한 plan이다.
 
 | 전체 refresh plan | complete | errored | create | update | delete | replace | import | forget | 주소 이동 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -54,11 +59,17 @@ WS task/service/IAM/log만 enable 조건을 따른다.
 steady source만으로 prod plan을 성공이라고 주장할 수 없다.
 
 `terraform fmt -check -recursive terraform`, 두 runnable root의 `terraform validate`,
-`python3 -m unittest discover -s tests -v` (12개)가 통과했다. 테스트는 모든 AWS write와
+`python3 -m unittest discover -s tests -v` (18개)가 통과했다. 테스트는 모든 AWS write와
 양방향 replacement, 불완전/errored/deferred plan, 임의/누락/ID 불일치 state 동작,
+이동 전·후 ID와 unknown ID, action/deferred-action invocation 차단,
 중복 주소, private 값 비출력, backend 경계, CI revision 소유권과 migration 블록 부재를 검사한다.
 `check_readonly_plan.py`는 manifest 없이는 state 동작도 허용하지 않으며, migration에서는
-정확한 imports/forget/moves 전체 집합이 일치해야 한다.
+정확한 imports/forget/moves 전체 집합이 일치해야 한다. 각 move는 검증한 원본
+state의 기존 ID를 manifest에 저장하고 plan의 before.id와 after.id 양쪽과 대조한다.
+`tests/test_dependency_graph.py`는 `terraform graph -type=plan`의 실제 그래프에서
+전체 선행 경로, 모든 BE 비서비스 리소스의 AI 독립성, 비순환성을 검사한다.
+필수 edge를 제거하거나 BE 모듈 전체에 AI 의존성을 추가한 그래프가 거절되는지도 검사한다.
+이 그래프 검증은 현재 객체의 no-op 여부에 기대지 않아 최초 생성/복구 순서를 검증한다.
 
 운영과 별도 Loki 및 세 staging state를 읽어 import 대상의 중복 managed 소유권이
 없음을 재확인했다. prod serial 29, Loki serial 4이며, 검증 전후 state bytes와
@@ -151,9 +162,9 @@ private archive에만 남긴다. 아래 각 행은 한 기존 객체를 정확�
 
 | 기존 주소 | 최종 주소 | 유지하는 기존 ID |
 | --- | --- | --- |
-| `module.ecs.aws_cloudwatch_log_group.service["ai"]` | `module.ai.module.runtime.aws_cloudwatch_log_group.service[0]` | `/ecs/star23/prod/ai` |
+| `module.ecs.aws_cloudwatch_log_group.service["ai"]` | `module.ai.aws_cloudwatch_log_group.service[0]` | `/ecs/star23/prod/ai` |
 | `module.ecs.aws_cloudwatch_log_group.service["be"]` | `module.be.aws_cloudwatch_log_group.service` | `/ecs/star23/prod/be` |
-| `module.ecs.aws_cloudwatch_log_group.service["ws"]` | `module.ws.module.runtime.aws_cloudwatch_log_group.service[0]` | `/ecs/star23/prod/ws` |
+| `module.ecs.aws_cloudwatch_log_group.service["ws"]` | `module.ws.aws_cloudwatch_log_group.service[0]` | `/ecs/star23/prod/ws` |
 | `module.ecs.aws_ecs_cluster.main` | `module.cluster.aws_ecs_cluster.main` | `arn:aws:ecs:ap-northeast-2:975779326240:cluster/star23-ecs-cluster` |
 | `module.ecs.aws_ecs_service.ai` | `module.ai.aws_ecs_service.ai` | `arn:aws:ecs:ap-northeast-2:975779326240:service/star23-ecs-cluster/star23-ai-service` |
 | `module.ecs.aws_ecs_service.be` | `module.be.aws_ecs_service.be` | `arn:aws:ecs:ap-northeast-2:975779326240:service/star23-ecs-cluster/star23-be-service` |
@@ -163,18 +174,18 @@ private archive에만 남긴다. 아래 각 행은 한 기존 객체를 정확�
 | `module.ecs.aws_ecs_task_definition.ws[0]` | `module.ws.aws_ecs_task_definition.ws[0]` | `star23-ws` |
 | `module.ecs.aws_iam_role.ecs_execution` | `module.be.aws_iam_role.ecs_execution` | `star23-ecs-execution-role` |
 | `module.ecs.aws_iam_role.ecs_task` | `module.be.aws_iam_role.ecs_task` | `star23-ecs-task-role` |
-| `module.ecs.aws_iam_role.service_execution["ai"]` | `module.ai.module.runtime.aws_iam_role.service_execution["ai"]` | `star23-ai-ecs-execution-role` |
-| `module.ecs.aws_iam_role.service_execution["ws"]` | `module.ws.module.runtime.aws_iam_role.service_execution["ws"]` | `star23-ws-ecs-execution-role` |
-| `module.ecs.aws_iam_role.service_task["ai"]` | `module.ai.module.runtime.aws_iam_role.service_task["ai"]` | `star23-ai-ecs-task-role` |
-| `module.ecs.aws_iam_role.service_task["ws"]` | `module.ws.module.runtime.aws_iam_role.service_task["ws"]` | `star23-ws-ecs-task-role` |
+| `module.ecs.aws_iam_role.service_execution["ai"]` | `module.ai.aws_iam_role.service_execution["ai"]` | `star23-ai-ecs-execution-role` |
+| `module.ecs.aws_iam_role.service_execution["ws"]` | `module.ws.aws_iam_role.service_execution["ws"]` | `star23-ws-ecs-execution-role` |
+| `module.ecs.aws_iam_role.service_task["ai"]` | `module.ai.aws_iam_role.service_task["ai"]` | `star23-ai-ecs-task-role` |
+| `module.ecs.aws_iam_role.service_task["ws"]` | `module.ws.aws_iam_role.service_task["ws"]` | `star23-ws-ecs-task-role` |
 | `module.ecs.aws_iam_role_policy.be_s3` | `module.be.aws_iam_role_policy.be_s3` | `star23-ecs-task-role:star23-be-s3` |
 | `module.ecs.aws_iam_role_policy.ecs_execution_secrets[0]` | `module.be.aws_iam_role_policy.ecs_execution_secrets[0]` | `star23-ecs-execution-role:star23-ecs-execution-secrets` |
-| `module.ecs.aws_iam_role_policy.service_execution_secrets["ai"]` | `module.ai.module.runtime.aws_iam_role_policy.service_execution_secrets["ai"]` | `star23-ai-ecs-execution-role:star23-ai-ecs-execution-secrets` |
-| `module.ecs.aws_iam_role_policy.service_execution_secrets["ws"]` | `module.ws.module.runtime.aws_iam_role_policy.service_execution_secrets["ws"]` | `star23-ws-ecs-execution-role:star23-ws-ecs-execution-secrets` |
+| `module.ecs.aws_iam_role_policy.service_execution_secrets["ai"]` | `module.ai.aws_iam_role_policy.service_execution_secrets["ai"]` | `star23-ai-ecs-execution-role:star23-ai-ecs-execution-secrets` |
+| `module.ecs.aws_iam_role_policy.service_execution_secrets["ws"]` | `module.ws.aws_iam_role_policy.service_execution_secrets["ws"]` | `star23-ws-ecs-execution-role:star23-ws-ecs-execution-secrets` |
 | `module.ecs.aws_iam_role_policy.ws_s3[0]` | `module.ws.aws_iam_role_policy.ws_s3[0]` | `star23-ws-ecs-task-role:star23-ws-s3` |
 | `module.ecs.aws_iam_role_policy_attachment.ecs_execution` | `module.be.aws_iam_role_policy_attachment.ecs_execution` | `star23-ecs-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy` |
-| `module.ecs.aws_iam_role_policy_attachment.service_execution["ai"]` | `module.ai.module.runtime.aws_iam_role_policy_attachment.service_execution["ai"]` | `star23-ai-ecs-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy` |
-| `module.ecs.aws_iam_role_policy_attachment.service_execution["ws"]` | `module.ws.module.runtime.aws_iam_role_policy_attachment.service_execution["ws"]` | `star23-ws-ecs-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy` |
+| `module.ecs.aws_iam_role_policy_attachment.service_execution["ai"]` | `module.ai.aws_iam_role_policy_attachment.service_execution["ai"]` | `star23-ai-ecs-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy` |
+| `module.ecs.aws_iam_role_policy_attachment.service_execution["ws"]` | `module.ws.aws_iam_role_policy_attachment.service_execution["ws"]` | `star23-ws-ecs-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy` |
 | `module.ecs.aws_secretsmanager_secret.be` | `module.be.aws_secretsmanager_secret.be` | `arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9` |
 | `module.ecs.aws_secretsmanager_secret_version.be` | `module.be.aws_secretsmanager_secret_version.be` | `arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9|terraform-gZGSWr5TiuTJGHVC7uHS3x3FeJ` |
 | `module.ecs.aws_service_discovery_http_namespace.ecs` | `module.cluster.aws_service_discovery_http_namespace.ecs` | `ns-k6pvl6yg5znymjo7` |
@@ -228,13 +239,13 @@ private archive에만 남긴다. 아래 각 행은 한 기존 객체를 정확�
 | `module.ecs.aws_ssm_parameter.be_config["TOKEN_URI"]` | `module.be.aws_ssm_parameter.be_config["TOKEN_URI"]` | `/star23/prod/be/TOKEN_URI` |
 | `module.ecs.aws_ssm_parameter.be_config["USER_INFO_URI"]` | `module.be.aws_ssm_parameter.be_config["USER_INFO_URI"]` | `/star23/prod/be/USER_INFO_URI` |
 | `module.network.aws_security_group.app` | `module.be.aws_security_group.app` | `sg-0503c9272aec02938` |
-| `module.network.aws_security_group.ecs_service["ai"]` | `module.ai.module.runtime.aws_security_group.service` | `sg-0b0c8b8bf5a2ad320` |
-| `module.network.aws_security_group.ecs_service["ws"]` | `module.ws.module.runtime.aws_security_group.service` | `sg-0485ff24c6d6eec2e` |
+| `module.network.aws_security_group.ecs_service["ai"]` | `module.ai.aws_security_group.service` | `sg-0b0c8b8bf5a2ad320` |
+| `module.network.aws_security_group.ecs_service["ws"]` | `module.ws.aws_security_group.service` | `sg-0485ff24c6d6eec2e` |
 | `module.network.aws_vpc_security_group_egress_rule.alb_to_app` | `aws_vpc_security_group_egress_rule.alb_to_app` | `sgr-02fc698b70927d7c1` |
 | `module.network.aws_vpc_security_group_egress_rule.alb_to_ws` | `aws_vpc_security_group_egress_rule.alb_to_ws` | `sgr-0b5e6d320c19b544a` |
 | `module.network.aws_vpc_security_group_egress_rule.app_outbound_rule` | `module.be.aws_vpc_security_group_egress_rule.app_outbound_rule` | `sgr-05f1f0f7b7865b239` |
-| `module.network.aws_vpc_security_group_egress_rule.ecs_service_outbound["ai"]` | `module.ai.module.runtime.aws_vpc_security_group_egress_rule.outbound` | `sgr-034a8e20bc40df1e4` |
-| `module.network.aws_vpc_security_group_egress_rule.ecs_service_outbound["ws"]` | `module.ws.module.runtime.aws_vpc_security_group_egress_rule.outbound` | `sgr-0b2bfe7a7cb1470a5` |
+| `module.network.aws_vpc_security_group_egress_rule.ecs_service_outbound["ai"]` | `module.ai.aws_vpc_security_group_egress_rule.outbound` | `sgr-034a8e20bc40df1e4` |
+| `module.network.aws_vpc_security_group_egress_rule.ecs_service_outbound["ws"]` | `module.ws.aws_vpc_security_group_egress_rule.outbound` | `sgr-0b2bfe7a7cb1470a5` |
 | `module.network.aws_vpc_security_group_ingress_rule.additional_ecs_database["ai-postgres"]` | `aws_vpc_security_group_ingress_rule.additional_ecs_database["ai-postgres"]` | `sgr-0c2393df6938f93fb` |
 | `module.network.aws_vpc_security_group_ingress_rule.additional_ecs_database["ws-mysql"]` | `aws_vpc_security_group_ingress_rule.additional_ecs_database["ws-mysql"]` | `sgr-0a80d1f7411594df8` |
 | `module.network.aws_vpc_security_group_ingress_rule.ai_from_be` | `aws_vpc_security_group_ingress_rule.ai_from_be` | `sgr-0528c999524434f7c` |
