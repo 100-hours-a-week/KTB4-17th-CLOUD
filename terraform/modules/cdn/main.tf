@@ -1,7 +1,7 @@
 # 기존 CloudFront와 외부 WAF·Function·OAC·인증서 연결을 유지한다.
 
 resource "aws_cloudfront_distribution" "fe" {
-  aliases             = ["star23sharp.com"]
+  aliases             = ["star23sharp.com", "dev.star23sharp.com", "api.star23sharp.com", "grafana.star23sharp.com", "stag.star23sharp.com"]
   anycast_ip_list_id  = null
   comment             = null
   default_root_object = "index.html"
@@ -12,7 +12,7 @@ resource "aws_cloudfront_distribution" "fe" {
   retain_on_delete    = false
   staging             = false
   tags = {
-    Name = "${var.name_prefix}-cdn"
+    Name = "${var.name_prefix}sharp-cdn"
   }
 
   wait_for_deployment = true
@@ -51,15 +51,19 @@ resource "aws_cloudfront_distribution" "fe" {
     field_level_encryption_id  = null
     max_ttl                    = 0
     min_ttl                    = 0
-    origin_request_policy_id   = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+    origin_request_policy_id   = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
     path_pattern               = "/api/*"
     realtime_log_config_arn    = null
     response_headers_policy_id = null
     smooth_streaming           = false
-    target_origin_id           = "api.byul23.shop"
+    target_origin_id           = "star23-ecs-alb"
     trusted_key_groups         = []
     trusted_signers            = []
     viewer_protocol_policy     = "redirect-to-https"
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = "arn:aws:cloudfront::975779326240:function/star23-stag-api-origin-router"
+    }
     grpc_config {
       enabled = false
     }
@@ -73,17 +77,80 @@ resource "aws_cloudfront_distribution" "fe" {
     field_level_encryption_id  = null
     max_ttl                    = 0
     min_ttl                    = 0
-    origin_request_policy_id   = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+    origin_request_policy_id   = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
     path_pattern               = "/ws/*"
     realtime_log_config_arn    = null
     response_headers_policy_id = null
     smooth_streaming           = false
-    target_origin_id           = "api.byul23.shop"
+    target_origin_id           = "star23-ecs-alb"
     trusted_key_groups         = []
     trusted_signers            = []
     viewer_protocol_policy     = "redirect-to-https"
     grpc_config {
       enabled = false
+    }
+  }
+  ordered_cache_behavior {
+    allowed_methods            = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cache_policy_id            = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+    cached_methods             = ["GET", "HEAD"]
+    compress                   = true
+    default_ttl                = 0
+    field_level_encryption_id  = null
+    max_ttl                    = 0
+    min_ttl                    = 0
+    origin_request_policy_id   = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+    path_pattern               = "/api"
+    realtime_log_config_arn    = null
+    response_headers_policy_id = null
+    smooth_streaming           = false
+    target_origin_id           = "star23-ecs-alb"
+    trusted_key_groups         = []
+    trusted_signers            = []
+    viewer_protocol_policy     = "redirect-to-https"
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = "arn:aws:cloudfront::975779326240:function/star23-stag-api-origin-router"
+    }
+    grpc_config {
+      enabled = false
+    }
+  }
+  ordered_cache_behavior {
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cache_policy_id            = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+    cached_methods             = ["GET", "HEAD"]
+    compress                   = true
+    default_ttl                = 0
+    field_level_encryption_id  = null
+    max_ttl                    = 0
+    min_ttl                    = 0
+    origin_request_policy_id   = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+    path_pattern               = "/ws"
+    realtime_log_config_arn    = null
+    response_headers_policy_id = null
+    smooth_streaming           = false
+    target_origin_id           = "star23-ecs-alb"
+    trusted_key_groups         = []
+    trusted_signers            = []
+    viewer_protocol_policy     = "redirect-to-https"
+    grpc_config {
+      enabled = false
+    }
+  }
+  origin {
+    connection_attempts      = 3
+    connection_timeout       = 10
+    domain_name              = "ecs-origin.byul23.shop"
+    origin_id                = "star23-ecs-alb"
+    origin_access_control_id = null
+    custom_origin_config {
+      http_port                = 80
+      https_port               = 443
+      origin_keepalive_timeout = 60
+      origin_protocol_policy   = "https-only"
+      origin_read_timeout      = 60
+      origin_ssl_protocols     = ["TLSv1.2"]
     }
   }
   origin {
@@ -138,7 +205,7 @@ resource "aws_cloudfront_distribution" "fe" {
     }
   }
   viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:975779326240:certificate/ed35e165-db15-49d2-ae58-d5460cbcb6e5"
+    acm_certificate_arn            = "arn:aws:acm:us-east-1:975779326240:certificate/070b941a-1adb-4359-a340-5b24fa07d657"
     cloudfront_default_certificate = false
     iam_certificate_id             = null
     minimum_protocol_version       = "TLSv1.3_2025"
