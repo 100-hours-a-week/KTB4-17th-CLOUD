@@ -110,3 +110,17 @@ variable "ai_secret_values" {
     error_message = "AI runtime secret keys must start with AI_ to avoid overwriting backend credentials."
   }
 }
+
+variable "ai_additional_execution_secret_arns" {
+  description = "Existing Secrets Manager grants used by CI-managed AI task revisions beyond the Terraform bootstrap definition."
+  type        = set(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for arn in var.ai_additional_execution_secret_arns :
+      can(regex("^arn:aws:secretsmanager:[^:]+:[0-9]{12}:secret:[^:]+$", arn))
+    ])
+    error_message = "Supply existing Secrets Manager ARNs without JSON key or version selectors."
+  }
+}

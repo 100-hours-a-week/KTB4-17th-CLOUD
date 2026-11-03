@@ -27,9 +27,12 @@ resource "aws_ecs_task_definition" "ws" {
   }
 
   container_definitions = jsonencode([{
-    name      = "ws"
-    image     = var.ws_image_uri
-    essential = true
+    name           = "ws"
+    image          = var.ws_image_uri
+    essential      = true
+    mountPoints    = []
+    systemControls = []
+    volumesFrom    = []
 
     logConfiguration = {
       logDriver = "awslogs"
@@ -43,6 +46,7 @@ resource "aws_ecs_task_definition" "ws" {
     portMappings = [{
       name          = "ws"
       containerPort = var.ws_port
+      hostPort      = var.ws_port
       protocol      = "tcp"
     }]
 

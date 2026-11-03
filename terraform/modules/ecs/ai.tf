@@ -89,8 +89,8 @@ resource "aws_ecs_service" "ai" {
   availability_zone_rebalancing      = "ENABLED"
 
   deployment_circuit_breaker {
-    enable   = true
-    rollback = true
+    enable   = false
+    rollback = false
   }
 
   network_configuration {
