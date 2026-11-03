@@ -9,6 +9,17 @@ ROOT = Path(__file__).resolve().parents[1] / "terraform"
 
 
 class SourceContractTests(unittest.TestCase):
+    def test_direct_service_resource_visibility(self):
+        for service in ("be", "ws", "ai"):
+            folder = ROOT / "modules/ecs/services" / service
+            with self.subTest(service=service):
+                self.assertIn('resource "aws_security_group"', (folder / "network.tf").read_text())
+                self.assertIn('resource "aws_iam_role"', (folder / "iam.tf").read_text())
+                self.assertIn('resource "aws_cloudwatch_log_group"', (folder / "logs.tf").read_text())
+                self.assertTrue((folder / "configuration.tf").is_file())
+                self.assertNotIn('module "runtime"', "\n".join(p.read_text() for p in folder.glob("*.tf")))
+        self.assertFalse((ROOT / "modules/ecs/runtime").exists())
+
     def test_steady_source_has_no_reconciliation_blocks(self):
         sources = [p for p in ROOT.rglob("*.tf") if ".terraform" not in p.parts]
         self.assertTrue(sources)

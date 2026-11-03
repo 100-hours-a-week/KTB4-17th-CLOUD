@@ -6,8 +6,8 @@ resource "aws_ecs_task_definition" "ws" {
   network_mode             = "awsvpc"
   cpu                      = "1024"
   memory                   = "2048"
-  execution_role_arn       = module.runtime.execution_role_arn
-  task_role_arn            = module.runtime.task_role_arn
+  execution_role_arn       = aws_iam_role.service_execution["ws"].arn
+  task_role_arn            = aws_iam_role.service_task["ws"].arn
 
   runtime_platform {
     operating_system_family = "LINUX"
@@ -25,7 +25,7 @@ resource "aws_ecs_task_definition" "ws" {
     logConfiguration = {
       logDriver = "awslogs"
       options = {
-        "awslogs-group"         = module.runtime.log_group_name
+        "awslogs-group"         = aws_cloudwatch_log_group.service[0].name
         "awslogs-region"        = data.aws_region.current.region
         "awslogs-stream-prefix" = "ecs"
       }
@@ -57,7 +57,7 @@ resource "aws_ecs_task_definition" "ws" {
     environment = var.environment
   }
 
-  depends_on = [aws_iam_role_policy.ws_s3]
+  depends_on = [aws_iam_role_policy_attachment.service_execution, aws_iam_role_policy.service_execution_secrets, aws_iam_role_policy.service_execution_secret_kms, aws_iam_role_policy.ws_s3]
 }
 
 resource "aws_ecs_service" "ws" {
@@ -85,7 +85,7 @@ resource "aws_ecs_service" "ws" {
   network_configuration {
     subnets = var.subnet_ids
 
-    security_groups  = [module.runtime.security_group_id]
+    security_groups  = [aws_security_group.service.id]
     assign_public_ip = false
   }
 
@@ -108,6 +108,8 @@ resource "aws_ecs_service" "ws" {
     Name        = "${var.name_prefix}-ws-service"
     environment = var.environment
   }
+
+  depends_on = [aws_vpc_security_group_egress_rule.outbound]
 
   lifecycle {
     ignore_changes = [task_definition]

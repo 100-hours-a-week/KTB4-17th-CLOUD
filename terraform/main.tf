@@ -64,6 +64,7 @@ module "ai" {
   namespace_arn                       = module.cluster.namespace_arn
   subnet_ids                          = module.network.application_subnet_ids
   vpc_id                              = module.network.vpc_id
+  backend_config_references           = module.be.config_references
   ai_repository_url                   = module.storage.ai_repository_url
   ai_image_tag                        = var.ai_image_tag
   ai_port                             = var.ai_port
@@ -98,7 +99,7 @@ module "be" {
   be_secret_version      = var.be_secret_version
   be_secret_kms_key_arns = var.be_secret_kms_key_arns
   ai_secret_values       = var.ai_secret_values
-  depends_on             = [module.ai]
+  ai_service_name        = module.ai.service_name
 }
 
 module "ws" {

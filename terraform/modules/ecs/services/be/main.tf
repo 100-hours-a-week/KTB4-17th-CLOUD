@@ -102,6 +102,8 @@ resource "aws_ecs_service" "be" {
   }
 
   # 생성 후 리비전 업데이트는 CI/CD가 담당한다. Terraform이 배포된 버전을 되돌리지 않도록 한다.
+  depends_on = [var.ai_service_name]
+
   lifecycle {
     ignore_changes = [task_definition]
   }

@@ -43,7 +43,7 @@ resource "aws_iam_role" "service_task" {
 resource "aws_iam_role_policy" "service_execution_secrets" {
   for_each = {
     for name, settings in local.additional_ecs_services : name => settings
-    if length(settings.secrets) > 0 || (name == "ai" && length(var.additional_execution_secret_arns) > 0)
+    if length(settings.secrets) > 0 || (name == "ai" && length(var.ai_additional_execution_secret_arns) > 0)
   }
 
   name = "${var.name_prefix}-${each.key}-ecs-execution-secrets"
@@ -58,7 +58,7 @@ resource "aws_iam_role_policy" "service_execution_secrets" {
       Resource = distinct(concat([
         for value_from in values(each.value.secrets) :
         join(":", slice(split(":", value_from), 0, 7))
-      ], tolist(var.additional_execution_secret_arns)))
+      ], tolist(var.ai_additional_execution_secret_arns)))
     }]
     }) : jsonencode({
     Version = "2012-10-17"
@@ -68,10 +68,10 @@ resource "aws_iam_role_policy" "service_execution_secrets" {
         Action   = startswith(value_from, "arn:aws:secretsmanager:") ? ["secretsmanager:GetSecretValue"] : ["ssm:GetParameters"]
         Resource = startswith(value_from, "arn:aws:secretsmanager:") ? join(":", slice(split(":", value_from), 0, 7)) : value_from
       }
-      ], each.key == "ai" && length(var.additional_execution_secret_arns) > 0 ? [{
+      ], each.key == "ai" && length(var.ai_additional_execution_secret_arns) > 0 ? [{
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue"]
-        Resource = tolist(var.additional_execution_secret_arns)
+        Resource = tolist(var.ai_additional_execution_secret_arns)
     }] : [])
   })
 }

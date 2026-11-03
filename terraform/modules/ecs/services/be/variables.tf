@@ -148,3 +148,8 @@ variable "ai_secret_values" {
     error_message = "AI runtime secret keys must start with AI_ to avoid overwriting backend credentials."
   }
 }
+
+variable "ai_service_name" {
+  description = "AI service output, available after its healthy steady state; gates only the BE service."
+  type        = string
+}

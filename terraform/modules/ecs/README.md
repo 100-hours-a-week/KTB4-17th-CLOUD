@@ -7,9 +7,8 @@
 | --- | --- |
 | `cluster` | 공용 ECS cluster, Service Connect HTTP namespace |
 | `services/be` | BE task/service, 전용 SG·egress, 기존 BE IAM, 로그, SSM, 단일 공유 Secret/version |
-| `services/ws` | WS task/service, S3 정책, BE config ARN 재사용 여부와 WS config/secret 참조, 전용 runtime 호출 |
-| `services/ai` | AI task/service, AI config/secret ARN와 CI 추가 권한 참조, 전용 runtime 호출 |
-| `runtime` | WS·AI에서 재사용하는 IAM·로그·전용 SG/egress 구현; 서비스마다 별도 인스턴스 |
+| `services/ws` | WS task/service, 직접 정의한 SG/egress·IAM·logs·S3 정책, BE config 재사용과 WS 참조 |
+| `services/ai` | AI task/service, 직접 정의한 SG/egress·IAM·logs, AI config/secret·CI 추가 권한 |
 
 각 서비스는 `subnet_ids`로 배치할 공유 subnet을 선택한다. VPC/subnet/NAT/route는
 network 소유다. ALB와 DB 및 다른 서비스에 대한 SG 연결은 루트 `connections.tf`에서
@@ -21,7 +20,10 @@ network는 서비스 출력에 의존하지 않으므로 순환하지 않는다.
 
 BE가 공유 Secret 객체와 version을 단독 소유한다. `ai_secret_values`도 이 소유자에
 전달한다. WS는 BE의 `config_references` (SSM/Secret ARN)만 받아 자신의 참조·권한을
-만들며, AI는 `ai_secrets`에 주어진 기존 ARN만 참조한다. 다른 서비스가 Secret을
+만든다. AI는 `ai_secrets`의 기존 ARN을 사용하되 BE `config_references`의
+Secret/version 준비 의존성도 task에 전달받는다. BE service만 AI service 출력을
+기다리며, 모듈 전체를 기다리지 않는다. 두 서비스의 기존 `wait_for_steady_state`
+설정과 AI healthCheck로 Secret/version → AI healthy → BE service 순서를 보존한다. 다른 서비스가 Secret을
 중복 생성하거나 읽은 비밀값을 일반 Terraform 입력/출력으로 노출하지 않는다.
 
 실제 값은 민감한 ephemeral 입력과 write-only provider 속성으로만 전달한다.

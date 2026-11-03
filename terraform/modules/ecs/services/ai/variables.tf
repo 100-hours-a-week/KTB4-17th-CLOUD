@@ -121,3 +121,8 @@ variable "ai_additional_execution_secret_arns" {
     error_message = "Supply existing Secrets Manager ARNs without JSON key or version selectors."
   }
 }
+
+variable "backend_config_references" {
+  description = "Shared config ARN references; the BE output also waits for its Secret version."
+  type        = map(string)
+}
