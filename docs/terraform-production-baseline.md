@@ -1,5 +1,9 @@
 # 운영 Terraform 소스 기준선 — #11
 
+> 이 문서는 #11 당시의 역사적 증거다. #5의 현재 모듈 구조, private ONE-OFF 제안과
+> manifest 기반 검증 방법은 [서비스 모듈 문서](terraform-service-modules.md)를 따른다.
+> 아래 tracked migration 파일 설명과 예전 무제한 import/forget 검사 방법은 현재 실행 지침이 아니다.
+
 2026-11-03, `main`의 `392dadb`를 기준으로 실제 AWS 운영 구성과 소스를
 대조했다. V1 EC2는 dev, V2 ECS는 prod다. 환경 디렉터리 재구성(#5), staging
 복원, EIP 정리(#12)는 포함하지 않는다. 원본 미커밋 저장소는 읽기만 했고,
