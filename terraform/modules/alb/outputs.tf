@@ -14,5 +14,5 @@ output "ws_target_group_arn" {
   description = "WebSocket target group, ready to attach to an ECS service."
   value       = aws_lb_target_group.ws.arn
 
-  depends_on = [aws_lb_listener_rule.ws]
+  depends_on = [aws_lb_listener_rule.chat_routes]
 }

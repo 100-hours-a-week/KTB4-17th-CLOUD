@@ -11,7 +11,11 @@
 ## 관리 범위
 
 기존 CloudFront Distribution 하나를 관리한다.
-`/api/*`와 `/ws/*`의 오리진은 기존 `api.byul23.shop`을 유지한다.
+공유 aliases 5개와 origins 4개를 모두 유지한다. `/api/*`, `/ws/*`, `/api`,
+`/ws`의 순서를 유지하며 모두 `star23-ecs-alb` (`ecs-origin.byul23.shop`)을
+대상으로 한다. API 두 behavior의 `star23-stag-api-origin-router`와 기본
+S3 behavior의 `star23-spa-routing` Function 연결을 보존한다.
+기존 `api.byul23.shop` origin도 제거하지 않는다.
 S3 오리진 도메인도 기존 값을 유지한다.
 WAF·CloudFront Function·OAC·ACM 인증서는 외부 ARN/ID를 참조한다.
 이 모듈은 해당 외부 리소스를 생성하거나 관리하지 않는다.

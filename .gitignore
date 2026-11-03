@@ -1,5 +1,12 @@
 .idea/
-/terraform/.terraform
-/terraform/.terraform.lock.hcl
-terraform/terraform.tfvars
+.ouroboros/
+**/.terraform/
+**/*.tfvars
+**/*.tfvars.json
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+**/crash.log
+**/crash.*.log
 terraform/cloud-map-terraform-policy.json
+**/__pycache__/
