@@ -6,17 +6,31 @@ import json
 from pathlib import Path
 
 
+def known_id(change, side):
+    values = change.get(side)
+    if not isinstance(values, dict) or not isinstance(values.get("id"), str) or not values["id"]:
+        raise ValueError("Resource identity is missing or invalid")
+    unknown = change.get("after_unknown", {})
+    if side == "after" and (not isinstance(unknown, dict) or unknown.get("id")):
+        raise ValueError("Resource identity is unknown")
+    return values["id"]
+
+
 def audit(plan, manifest=None):
     """Reject writes and any unlisted, missing, or differently identified state operation.
 
     Without a manifest, require steady-state plans (no imports, forgets or moves).
     A manifest contains exact imports {address: id}, forget {address: id}, and
-    moves {previous_address: address}; it contains identities, never secret values.
+    moves {previous_address: {address: target, id: existing_id}};
+    it contains identities, never secret values.
     """
     if plan.get("errored") is not False or plan.get("complete") is not True:
         raise ValueError("Plan is errored, incomplete, or missing completion metadata")
     if plan.get("deferred_changes"):
         raise ValueError("Plan contains deferred changes")
+    for field in ("action_invocations", "deferred_action_invocations"):
+        if field in plan and (not isinstance(plan[field], list) or plan[field]):
+            raise ValueError("Plan contains action invocations or unsupported action metadata")
     changes = plan.get("resource_changes")
     if not isinstance(changes, list):
         raise ValueError("Plan is missing resource changes")
@@ -24,6 +38,17 @@ def audit(plan, manifest=None):
     if manifest is not None:
         if set(manifest) != set(expected) or any(not isinstance(v, dict) for v in manifest.values()):
             raise ValueError("Invalid reconciliation manifest")
+        for category in ("imports", "forget"):
+            if any(not isinstance(a, str) or not a or not isinstance(i, str) or not i
+                   for a, i in manifest[category].items()):
+                raise ValueError("Invalid reconciliation identities")
+        for previous, move in manifest["moves"].items():
+            if (not isinstance(previous, str) or not previous or not isinstance(move, dict)
+                    or set(move) != {"address", "id"}
+                    or any(not isinstance(v, str) or not v for v in move.values())):
+                raise ValueError("Invalid move identity")
+        if len({m["address"] for m in manifest["moves"].values()}) != len(manifest["moves"]):
+            raise ValueError("Duplicate move destination")
         expected = manifest
     observed = {key: {} for key in expected}
     counts = dict(create=0, update=0, delete=0, replace=0, imports=0, forget=0)
@@ -43,14 +68,22 @@ def audit(plan, manifest=None):
                 raise ValueError("Duplicate resource address")
             seen.add(address)
         if change.get("importing") is not None:
-            observed["imports"][resource["address"]] = change["importing"]["id"]
+            identity = change["importing"]["id"]
+            if known_id(change, "after") != identity:
+                raise ValueError("Imported identity is missing, unknown or changed")
+            observed["imports"][resource["address"]] = identity
         if actions == ["forget"]:
-            observed["forget"][resource["address"]] = change["before"]["id"]
+            observed["forget"][resource["address"]] = known_id(change, "before")
         if resource.get("previous_address"):
             previous = resource["previous_address"]
             if previous in observed["moves"]:
                 raise ValueError("Duplicate previous address")
-            observed["moves"][previous] = resource["address"]
+            move = expected["moves"].get(previous)
+            if (move is None or resource.get("mode", "managed") != "managed"
+                    or known_id(change, "before") != move["id"]
+                    or known_id(change, "after") != move["id"]):
+                raise ValueError("Moved identity is missing, unknown or changed")
+            observed["moves"][previous] = {"address": resource["address"], "id": move["id"]}
     if observed != expected:
         raise ValueError("State reconciliation differs from the exact approved proposal")
     return counts
