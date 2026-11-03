@@ -112,3 +112,9 @@ variable "ws_secret_kms_key_arns" {
   type        = set(string)
   default     = []
 }
+
+variable "traffic_rule_ids" {
+  description = "Root-owned traffic rule completion tokens, consumed only by the ECS service."
+  type        = list(string)
+  default     = []
+}

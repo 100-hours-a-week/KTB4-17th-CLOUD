@@ -76,6 +76,16 @@ module "ai" {
   ai_secret_kms_key_arns              = var.ai_secret_kms_key_arns
   ai_request_timeout_seconds          = var.ai_request_timeout_seconds
   ai_additional_execution_secret_arns = var.ai_additional_execution_secret_arns
+  # Only the ECS service consumes these tokens; SG/config/task creation stays independent.
+  traffic_rule_ids = concat(
+    [
+      aws_vpc_security_group_ingress_rule.ai_from_be.id,
+      aws_vpc_security_group_ingress_rule.ai_from_ws.id,
+    ],
+    [for key, rule in aws_vpc_security_group_ingress_rule.additional_ecs_database : rule.id if local.additional_ecs_database_rules[key].service == "ai"],
+    [for key, rule in aws_vpc_security_group_ingress_rule.v1_database_from_ecs : rule.id if local.v1_database_ingress_rules[key].service == "ai"],
+  )
+
 }
 
 module "be" {
@@ -100,6 +110,18 @@ module "be" {
   be_secret_kms_key_arns = var.be_secret_kms_key_arns
   ai_secret_values       = var.ai_secret_values
   ai_service_name        = module.ai.service_name
+  # Only the ECS service consumes these tokens; SG/config/task creation stays independent.
+  traffic_rule_ids = concat(
+    [
+      aws_vpc_security_group_egress_rule.alb_to_app.id,
+      aws_vpc_security_group_ingress_rule.app_from_alb.id,
+      aws_vpc_security_group_ingress_rule.mysql_from_app.id,
+      aws_vpc_security_group_ingress_rule.postgres_from_app.id,
+      aws_vpc_security_group_ingress_rule.ai_from_be.id,
+    ],
+    [for key, rule in aws_vpc_security_group_ingress_rule.v1_database_from_ecs : rule.id if local.v1_database_ingress_rules[key].service == "be"],
+  )
+
 }
 
 module "ws" {
@@ -123,4 +145,15 @@ module "ws" {
   ws_environment            = var.ws_environment
   ws_secrets                = var.ws_secrets
   ws_secret_kms_key_arns    = var.ws_secret_kms_key_arns
+  # Only the ECS service consumes these tokens; SG/config/task creation stays independent.
+  traffic_rule_ids = concat(
+    [
+      aws_vpc_security_group_ingress_rule.ws_from_alb.id,
+      aws_vpc_security_group_egress_rule.alb_to_ws.id,
+      aws_vpc_security_group_ingress_rule.ai_from_ws.id,
+    ],
+    [for key, rule in aws_vpc_security_group_ingress_rule.additional_ecs_database : rule.id if local.additional_ecs_database_rules[key].service == "ws"],
+    [for key, rule in aws_vpc_security_group_ingress_rule.v1_database_from_ecs : rule.id if local.v1_database_ingress_rules[key].service == "ws"],
+  )
+
 }

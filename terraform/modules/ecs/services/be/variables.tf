@@ -153,3 +153,9 @@ variable "ai_service_name" {
   description = "AI service output, available after its healthy steady state; gates only the BE service."
   type        = string
 }
+
+variable "traffic_rule_ids" {
+  description = "Root-owned traffic rule completion tokens, consumed only by the ECS service."
+  type        = list(string)
+  default     = []
+}

@@ -31,6 +31,11 @@ output "application_subnet_ids" {
 output "alb_security_group_id" {
   description = "Shared ALB security group; cross-owner egress is composed at root."
   value       = aws_security_group.alb.id
+
+  depends_on = [
+    aws_vpc_security_group_ingress_rule.alb_http,
+    aws_vpc_security_group_ingress_rule.alb_https,
+  ]
 }
 
 output "v1_database_peering_connection_id" {

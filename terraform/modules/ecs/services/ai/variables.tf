@@ -126,3 +126,9 @@ variable "backend_config_references" {
   description = "Shared config ARN references; the BE output also waits for its Secret version."
   type        = map(string)
 }
+
+variable "traffic_rule_ids" {
+  description = "Root-owned traffic rule completion tokens, consumed only by the ECS service."
+  type        = list(string)
+  default     = []
+}

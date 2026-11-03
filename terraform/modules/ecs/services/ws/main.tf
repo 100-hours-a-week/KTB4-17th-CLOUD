@@ -109,7 +109,7 @@ resource "aws_ecs_service" "ws" {
     environment = var.environment
   }
 
-  depends_on = [aws_vpc_security_group_egress_rule.outbound]
+  depends_on = [aws_vpc_security_group_egress_rule.outbound, var.traffic_rule_ids]
 
   lifecycle {
     ignore_changes = [task_definition]
