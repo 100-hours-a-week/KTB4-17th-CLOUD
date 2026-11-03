@@ -51,6 +51,7 @@ output "be_security_group_id" {
     aws_vpc_security_group_ingress_rule.mysql_from_app,
     aws_vpc_security_group_ingress_rule.postgres_from_app,
     aws_vpc_security_group_ingress_rule.ai_from_be,
+    aws_vpc_security_group_ingress_rule.ai_from_ws,
     aws_vpc_security_group_ingress_rule.v1_database_from_ecs,
   ]
 }
@@ -63,6 +64,7 @@ output "additional_ecs_security_group_ids" {
     aws_vpc_security_group_ingress_rule.ws_from_alb,
     aws_vpc_security_group_egress_rule.alb_to_ws,
     aws_vpc_security_group_ingress_rule.ai_from_be,
+    aws_vpc_security_group_ingress_rule.ai_from_ws,
     aws_vpc_security_group_egress_rule.ecs_service_outbound,
     aws_vpc_security_group_ingress_rule.additional_ecs_database,
     aws_vpc_security_group_ingress_rule.v1_database_from_ecs,

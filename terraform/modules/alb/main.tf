@@ -3,6 +3,7 @@ resource "aws_alb" "main" {
   internal           = false
   load_balancer_type = "application"
   ip_address_type    = "ipv4"
+  idle_timeout       = 120
 
   security_groups = [var.alb_security_group_id]
 

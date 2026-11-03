@@ -1,21 +1,28 @@
-resource "aws_lb_listener_rule" "ws" {
+# Existing priority-1 rule; the obsolete ws/ws_ai_practice IDs are not reused.
+resource "aws_lb_listener_rule" "chat_routes" {
   listener_arn = aws_lb_listener.https.arn
-  priority     = 100
+  priority     = 1
 
   action {
     type             = "forward"
-    target_group_arn = var.ws_enabled ? aws_lb_target_group.ws.arn : aws_lb_target_group.api.arn
+    order            = 1
+    target_group_arn = aws_lb_target_group.ws.arn
+    forward {
+      target_group {
+        arn    = aws_lb_target_group.ws.arn
+        weight = 1
+      }
+      stickiness {
+        enabled  = false
+        duration = 3600
+      }
+    }
   }
 
   condition {
     path_pattern {
-      values = ["/ws", "/ws/*"]
+      values = ["/api/v1/chat-rooms", "/api/v1/chat-rooms/*", "/internal/v1/ai-practice/**", "/ws/chat"]
     }
-  }
-
-  tags = {
-    Name        = "${var.name_prefix}-ws-listener-rule"
-    environment = "prod"
   }
 }
 

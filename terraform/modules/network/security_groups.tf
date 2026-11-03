@@ -24,6 +24,7 @@ resource "aws_security_group" "mysql" {
 
   name        = "${var.name_prefix}-mysql-sg"
   description = "MYSQL-SG"
+  tags        = { Name = "v2-rds-mysql" }
 }
 
 resource "aws_security_group" "postgres" {
@@ -31,6 +32,7 @@ resource "aws_security_group" "postgres" {
 
   name        = "${var.name_prefix}-postgres-sg"
   description = "POSTGRES-SG"
+  tags        = { Name = "v2-rds" }
 }
 
 resource "aws_security_group" "ecs_service" {
