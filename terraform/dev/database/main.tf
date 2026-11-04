@@ -1,3 +1,11 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
+
 resource "aws_instance" "data" {
   ami                         = "ami-0bc151a94289adb52"
   instance_type               = "t3.micro"

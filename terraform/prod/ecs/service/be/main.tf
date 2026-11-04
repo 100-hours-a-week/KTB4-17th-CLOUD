@@ -1,3 +1,11 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
+
 resource "aws_ecs_task_definition" "be" {
   family                   = "${var.name_prefix}-be"
   requires_compatibilities = ["FARGATE"]
@@ -29,7 +37,7 @@ resource "aws_ecs_task_definition" "be" {
 
       portMappings = [{
         name          = "http"
-        containerPort = var.app_port
+        containerPort = local.app_port
         protocol      = "tcp"
         appProtocol   = "http"
       }]
@@ -87,7 +95,7 @@ resource "aws_ecs_service" "be" {
   load_balancer {
     target_group_arn = var.be_target_group_arn
     container_name   = "be"
-    container_port   = var.app_port
+    container_port   = local.app_port
   }
 
   # BE 태스크는 Service Connect를 통해 ai라는 이름으로 AI 엔드포인트를 조회한다.

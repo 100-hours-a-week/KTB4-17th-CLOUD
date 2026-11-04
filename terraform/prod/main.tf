@@ -7,7 +7,7 @@ module "network" {
   vpc_version         = local.version
   zones               = local.zones
   v1_database_network = var.v1_database_network
-  environment         = var.environment
+  environment         = local.environment
 }
 
 module "alb" {
@@ -16,11 +16,11 @@ module "alb" {
   name_prefix          = local.name_prefix
   vpc_id               = module.network.vpc_id
   public_subnet_ids    = module.network.public_subnet_ids
-  app_port             = local.app_port
-  health_check_path    = local.health_check_path
-  ws_enabled           = var.ws_enabled
-  ws_port              = var.ws_port
-  ws_health_check_path = var.ws_health_check_path
+  app_port             = module.be.port
+  health_check_path    = module.be.health_check_path
+  ws_enabled           = var.ws_deployment.enabled
+  ws_port              = module.ws.port
+  ws_health_check_path = module.ws.health_check_path
   acm_certificate_arn  = var.acm_certificate_arn
 }
 
@@ -32,10 +32,7 @@ module "database" {
   vpc_id          = module.network.vpc_id
   data_subnet_ids = module.network.data_subnet_ids
   mysql_port      = local.mysql_port
-  mysql_username  = var.mysql_username
-
-  postgres_port     = local.postgres_port
-  postgres_username = var.postgres_username
+  postgres_port   = local.postgres_port
 }
 
 module "storage" {
@@ -51,29 +48,26 @@ module "cdn" {
 module "cluster" {
   source      = "./ecs/cluster"
   name_prefix = local.name_prefix
-  environment = var.environment
+  environment = local.environment
 }
 
 module "ai" {
   source                              = "./ecs/service/ai"
   name_prefix                         = local.name_prefix
-  environment                         = var.environment
+  environment                         = local.environment
   cluster_id                          = module.cluster.id
   namespace_arn                       = module.cluster.namespace_arn
   subnet_ids                          = module.network.application_subnet_ids
   vpc_id                              = module.network.vpc_id
   backend_config_references           = module.be.config_references
   ai_repository_url                   = module.storage.ai_repository_url
-  ai_image_tag                        = var.ai_image_tag
-  ai_port                             = var.ai_port
-  ai_health_check_path                = var.ai_health_check_path
-  ai_cpu_architecture                 = var.ai_cpu_architecture
-  ai_desired_count                    = var.ai_desired_count
-  ai_environment                      = var.ai_environment
-  ai_secrets                          = var.ai_secrets
-  ai_secret_kms_key_arns              = var.ai_secret_kms_key_arns
-  ai_request_timeout_seconds          = var.ai_request_timeout_seconds
-  ai_additional_execution_secret_arns = var.ai_additional_execution_secret_arns
+  ai_image_tag                        = var.ai_deployment.image_tag
+  ai_cpu_architecture                 = var.ai_deployment.cpu_architecture
+  ai_desired_count                    = var.ai_deployment.desired_count
+  ai_environment                      = var.ai_runtime.environment
+  ai_secrets                          = var.ai_runtime.secrets
+  ai_secret_kms_key_arns              = var.ai_runtime.kms_key_arns
+  ai_additional_execution_secret_arns = var.ai_runtime.additional_execution_secret_arns
   # Only the ECS service consumes these tokens; SG/config/task creation stays independent.
   traffic_rule_ids = concat(
     [
@@ -89,23 +83,22 @@ module "ai" {
 module "be" {
   source                 = "./ecs/service/be"
   name_prefix            = local.name_prefix
-  environment            = var.environment
+  environment            = local.environment
   cluster_id             = module.cluster.id
   namespace_arn          = module.cluster.namespace_arn
   subnet_ids             = module.network.application_subnet_ids
   vpc_id                 = module.network.vpc_id
-  app_port               = local.app_port
   be_target_group_arn    = module.alb.be_target_group_arn
   be_repository_url      = module.storage.be_repository_url
   image_bucket_arn       = module.storage.image_bucket_arn
-  be_image_tag           = var.be_image_tag
-  be_cpu_architecture    = var.be_cpu_architecture
-  be_desired_count       = var.be_desired_count
-  be_environment         = var.be_environment
-  be_secrets             = var.be_secrets
+  be_image_tag           = var.be_deployment.image_tag
+  be_cpu_architecture    = var.be_deployment.cpu_architecture
+  be_desired_count       = var.be_deployment.desired_count
+  be_environment         = var.be_runtime.environment
+  be_secrets             = var.be_runtime.secrets
   be_secret_values       = var.be_secret_values
   be_secret_version      = var.be_secret_version
-  be_secret_kms_key_arns = var.be_secret_kms_key_arns
+  be_secret_kms_key_arns = var.be_runtime.kms_key_arns
   ai_secret_values       = var.ai_secret_values
   ai_service_name        = module.ai.service_name
   # Only the ECS service consumes these tokens; SG/config/task creation stays independent.
@@ -125,24 +118,23 @@ module "be" {
 module "ws" {
   source                    = "./ecs/service/ws"
   name_prefix               = local.name_prefix
-  environment               = var.environment
+  environment               = local.environment
   cluster_id                = module.cluster.id
   namespace_arn             = module.cluster.namespace_arn
   subnet_ids                = module.network.application_subnet_ids
   vpc_id                    = module.network.vpc_id
   backend_config_references = module.be.config_references
-  backend_kms_key_arns      = var.be_secret_kms_key_arns
+  backend_kms_key_arns      = var.be_runtime.kms_key_arns
   ws_target_group_arn       = module.alb.ws_target_group_arn
   image_bucket_arn          = module.storage.image_bucket_arn
-  ws_enabled                = var.ws_enabled
-  ws_use_backend_config     = var.ws_use_backend_config
-  ws_image_uri              = var.ws_image_uri
-  ws_port                   = var.ws_port
-  ws_cpu_architecture       = var.ws_cpu_architecture
-  ws_desired_count          = var.ws_desired_count
-  ws_environment            = var.ws_environment
-  ws_secrets                = var.ws_secrets
-  ws_secret_kms_key_arns    = var.ws_secret_kms_key_arns
+  ws_enabled                = var.ws_deployment.enabled
+  ws_use_backend_config     = var.ws_deployment.use_backend_config
+  ws_image_uri              = var.ws_deployment.image_uri
+  ws_cpu_architecture       = var.ws_deployment.cpu_architecture
+  ws_desired_count          = var.ws_deployment.desired_count
+  ws_environment            = var.ws_runtime.environment
+  ws_secrets                = var.ws_runtime.secrets
+  ws_secret_kms_key_arns    = var.ws_runtime.kms_key_arns
   # Only the ECS service consumes these tokens; SG/config/task creation stays independent.
   traffic_rule_ids = concat(
     [

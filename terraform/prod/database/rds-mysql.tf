@@ -1,3 +1,11 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
+
 # 새 VPC의 data subnet에 MySQL을 둔다. 앱 subnet과 분리되고 외부 경로가 없다.
 resource "aws_db_subnet_group" "mysql" {
   name        = "${var.name_prefix}-${var.vpc_version}-prod-data"

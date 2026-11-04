@@ -1,3 +1,11 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
+
 resource "aws_ecs_task_definition" "ai" {
   family                   = "${var.name_prefix}-ai"
   requires_compatibilities = ["FARGATE"]
@@ -28,7 +36,7 @@ resource "aws_ecs_task_definition" "ai" {
 
     portMappings = [{
       name          = "ai-http"
-      containerPort = var.ai_port
+      containerPort = local.ai_port
       protocol      = "tcp"
       appProtocol   = "http"
     }]
@@ -50,7 +58,7 @@ resource "aws_ecs_task_definition" "ai" {
     healthCheck = {
       command = [
         "CMD", "python3", "-c",
-        "import urllib.request; r = urllib.request.urlopen(${jsonencode("http://127.0.0.1:${var.ai_port}${var.ai_health_check_path}")}, timeout=2); raise SystemExit(0 if r.status == 200 else 1)"
+        "import urllib.request; r = urllib.request.urlopen(${jsonencode("http://127.0.0.1:${local.ai_port}${local.ai_health_check_path}")}, timeout=2); raise SystemExit(0 if r.status == 200 else 1)"
       ]
       interval    = 30
       timeout     = 5
@@ -103,12 +111,12 @@ resource "aws_ecs_service" "ai" {
 
       client_alias {
         dns_name = "ai"
-        port     = var.ai_port
+        port     = local.ai_port
       }
 
       timeout {
-        per_request_timeout_seconds = var.ai_request_timeout_seconds
-        idle_timeout_seconds        = var.ai_request_timeout_seconds == 0 ? 0 : max(300, var.ai_request_timeout_seconds)
+        per_request_timeout_seconds = local.ai_request_timeout_seconds
+        idle_timeout_seconds        = local.ai_request_timeout_seconds == 0 ? 0 : max(300, local.ai_request_timeout_seconds)
       }
     }
   }

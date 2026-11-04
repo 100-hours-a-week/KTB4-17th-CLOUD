@@ -1,3 +1,11 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
+
 # 컨테이너 이미지 저장소. 이미지 빌드와 push는 CI가 담당한다.
 
 resource "aws_ecr_repository" "ai" {
