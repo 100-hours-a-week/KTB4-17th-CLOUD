@@ -1,6 +1,6 @@
 """Check Terraform's actual plan graph, independent of existing state or AWS.
 
-Run `terraform -chdir=terraform init -backend=false -input=false` first in a
+Run `terraform -chdir=terraform/prod init -input=false` first in a
 fresh checkout. Graph construction does not refresh resources or plan AWS writes.
 """
 
@@ -92,7 +92,7 @@ class DependencyGraphTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         result = subprocess.run(
-            ["terraform", "-chdir=terraform", "graph", "-type=plan"],
+            ["terraform", "-chdir=terraform/prod", "graph", "-type=plan"],
             cwd=ROOT, capture_output=True, text=True, check=True,
         )
         cls.graph = {}
@@ -102,9 +102,9 @@ class DependencyGraphTests(unittest.TestCase):
     def test_secret_version_then_ai_then_only_be_service(self):
         assert_order(self, self.graph)
         for service in ("ai", "be"):
-            source = (ROOT / f"terraform/modules/ecs/services/{service}/main.tf").read_text()
+            source = (ROOT / f"terraform/prod/modules/ecs/services/{service}/main.tf").read_text()
             self.assertRegex(source, r"wait_for_steady_state\s*=\s*true")
-        self.assertIn("healthCheck =", (ROOT / "terraform/modules/ecs/services/ai/main.tf").read_text())
+        self.assertIn("healthCheck =", (ROOT / "terraform/prod/modules/ecs/services/ai/main.tf").read_text())
 
     def test_regression_proof_rejects_missing_edges_and_module_wide_gate(self):
         for address in ("module.ai.var.backend_config_references", "module.be.var.ai_service_name"):
@@ -148,9 +148,9 @@ class DependencyGraphTests(unittest.TestCase):
             *((f"modules/ecs/services/{service}/main.tf", ", var.traffic_rule_ids", "") for service in RULES),
         ]
         with tempfile.TemporaryDirectory() as directory:
-            copy = Path(directory) / "terraform"
-            shutil.copytree(ROOT / "terraform", copy, ignore=shutil.ignore_patterns(".terraform", "dist"))
-            (copy / ".terraform").symlink_to(ROOT / "terraform/.terraform", target_is_directory=True)
+            copy = Path(directory) / "terraform/prod"
+            shutil.copytree(ROOT / "terraform/prod", copy, ignore=shutil.ignore_patterns(".terraform", "dist"))
+            (copy / ".terraform").symlink_to(ROOT / "terraform/prod/.terraform", target_is_directory=True)
             for relative, before, after in mutations:
                 with self.subTest(source=relative, removed=before):
                     path = copy / relative
@@ -171,7 +171,7 @@ class DependencyGraphTests(unittest.TestCase):
     def test_conditional_rule_tokens_empty_and_per_service(self):
         # Evaluate the actual root token expressions using Terraform, with independent
         # fixture IDs. Cover absent V1, every WS/AI DB subset, and both DB types.
-        source = (ROOT / "terraform/main.tf").read_text()
+        source = (ROOT / "terraform/prod/main.tf").read_text()
         expressions = {}
         for service in RULES:
             block = source.split(f'module "{service}" {{', 1)[1].split("\n}", 1)[0]

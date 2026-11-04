@@ -13,17 +13,17 @@ BE·WS·AI의 기존 CloudWatch 로그 그룹을 공식 Grafana Lambda Promtail 
 저장소 루트에서 실행한다. plan과 JSON은 저장소 밖의 권한 제한 디렉터리에 둔다.
 
 ```bash
-terraform/cloudwatch-loki/fetch-package.sh
-terraform -chdir=terraform/cloudwatch-loki init -input=false
+terraform/prod/cloudwatch-loki/fetch-package.sh
+terraform -chdir=terraform/prod/cloudwatch-loki init -input=false
 terraform fmt -check -recursive terraform
-terraform -chdir=terraform/cloudwatch-loki validate
-terraform -chdir=terraform/cloudwatch-loki plan -lock=false -input=false
+terraform -chdir=terraform/prod/cloudwatch-loki validate
+terraform -chdir=terraform/prod/cloudwatch-loki plan -lock=false -input=false
 ```
 
 공식 ZIP의 SHA256을 다운로드 스크립트에서 검증한다. provider 선택은
 `.terraform.lock.hcl`에 기록한다. ZIP·입력·state·raw plan은 커밋하지 않는다.
 이슈 #11의 작업은 소스 복원과 읽기 전용 검증까지다. 전체 검증 결과와 소유권은
-[운영 기준선 기록](../../docs/terraform-production-baseline.md)을 참조한다.
+[운영 기준선 기록](../../../docs/terraform-production-baseline.md)을 참조한다.
 
 ## 조회
 

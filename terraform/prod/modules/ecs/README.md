@@ -36,5 +36,5 @@ Terraform 소유지만 실제 서비스의 배포 리비전은 CI/CD 소유다. 
 WS 비활성화 시 task/service·IAM·로그가 비활성화된다. 기존 network 모델에서 항상
 소유했던 WS SG/egress 및 루트 연결 규칙은 계속 소유한다. 이는 staging 복원이 아니다.
 
-[검증, 전체 주소/ID 표, 미실행 state-only 절차](../../../docs/terraform-service-modules.md)를
+[검증, 전체 주소/ID 표, 미실행 state-only 절차](../../../../docs/terraform-service-modules.md)를
 검토해야 한다. 이 링크는 저장소 루트 기준으로 `docs/terraform-service-modules.md`다.

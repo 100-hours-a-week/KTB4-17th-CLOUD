@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1] / "terraform"
+ROOT = Path(__file__).resolve().parents[1] / "terraform/prod"
 
 
 class SourceContractTests(unittest.TestCase):
@@ -21,14 +21,14 @@ class SourceContractTests(unittest.TestCase):
         self.assertFalse((ROOT / "modules/ecs/runtime").exists())
 
     def test_steady_source_has_no_reconciliation_blocks(self):
-        sources = [p for p in ROOT.rglob("*.tf") if ".terraform" not in p.parts]
+        sources = [p for p in ROOT.parent.rglob("*.tf") if ".terraform" not in p.parts]
         self.assertTrue(sources)
         for path in sources:
-            with self.subTest(path=path.relative_to(ROOT)):
+            with self.subTest(path=path.relative_to(ROOT.parent)):
                 self.assertIsNone(re.search(r"^\s*(import|moved|removed)\s*\{", path.read_text(), re.MULTILINE))
 
     def test_backend_identities_remain_separate(self):
-        for path, key in ((ROOT, "prod/terraform.tfstate"), (ROOT / "cloudwatch-loki", "prod/cloudwatch-loki/terraform.tfstate")):
+        for path, key in ((ROOT.parent / "dev", "dev/terraform.tfstate"), (ROOT, "prod/terraform.tfstate"), (ROOT / "cloudwatch-loki", "prod/cloudwatch-loki/terraform.tfstate")):
             with self.subTest(path=path):
                 source = (path / "backend.tf").read_text()
                 self.assertIn('bucket       = "star23-tfstate-975779326240"', source)
