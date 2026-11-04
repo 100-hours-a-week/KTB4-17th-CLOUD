@@ -4,9 +4,8 @@ resource "aws_lb_listener_rule" "chat_routes" {
   priority     = 1
 
   action {
-    type             = "forward"
-    order            = 1
-    target_group_arn = aws_lb_target_group.ws.arn
+    type  = "forward"
+    order = 1
     forward {
       target_group {
         arn    = aws_lb_target_group.ws.arn
