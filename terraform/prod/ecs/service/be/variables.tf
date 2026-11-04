@@ -23,10 +23,6 @@ variable "vpc_id" {
   type        = string
 }
 
-variable "app_port" {
-  description = "Backend container port"
-  type        = number
-}
 variable "be_target_group_arn" {
   description = "Backend target group attached to the ALB listeners"
   type        = string

@@ -1,3 +1,11 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
+
 # 기존 CloudFront와 외부 WAF·Function·OAC·인증서 연결을 유지한다.
 
 resource "aws_cloudfront_distribution" "fe" {

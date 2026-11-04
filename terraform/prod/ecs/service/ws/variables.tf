@@ -59,15 +59,6 @@ variable "ws_image_uri" {
     error_message = "When ws_enabled is true, ws_image_uri must include a registry, repository, and tag or sha256 digest."
   }
 }
-variable "ws_port" {
-  description = "WebSocket application listening port; the server must bind to 0.0.0.0"
-  type        = number
-
-  validation {
-    condition     = var.ws_port >= 1 && var.ws_port <= 65535 && floor(var.ws_port) == var.ws_port
-    error_message = "ws_port must be an integer from 1 to 65535."
-  }
-}
 variable "ws_cpu_architecture" {
   description = "WebSocket image CPU architecture: X86_64 or ARM64"
   type        = string

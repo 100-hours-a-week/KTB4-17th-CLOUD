@@ -1,3 +1,11 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
+
 # Existing V1 dev hosts. Shared network and rule ownership stays external.
 resource "aws_instance" "app" {
   ami                         = "ami-01121f059d87f7a72"

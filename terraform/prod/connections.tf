@@ -11,8 +11,8 @@ resource "aws_vpc_security_group_egress_rule" "alb_to_app" {
 
   referenced_security_group_id = module.be.security_group_id
   ip_protocol                  = "tcp"
-  from_port                    = local.app_port
-  to_port                      = local.app_port
+  from_port                    = module.be.port
+  to_port                      = module.be.port
 
   tags = {
     Name = "${local.name_prefix}-alb-to-app-egress"
@@ -24,8 +24,8 @@ resource "aws_vpc_security_group_ingress_rule" "app_from_alb" {
 
   referenced_security_group_id = module.alb.alb_security_group_id
   ip_protocol                  = "tcp"
-  from_port                    = local.app_port
-  to_port                      = local.app_port
+  from_port                    = module.be.port
+  to_port                      = module.be.port
 
   tags = {
     Name = "${local.name_prefix}-app-from-alb-ingress"
@@ -62,12 +62,12 @@ resource "aws_vpc_security_group_ingress_rule" "ws_from_alb" {
   security_group_id            = module.ws.security_group_id
   referenced_security_group_id = module.alb.alb_security_group_id
   ip_protocol                  = "tcp"
-  from_port                    = var.ws_port
-  to_port                      = var.ws_port
+  from_port                    = module.ws.port
+  to_port                      = module.ws.port
 
   tags = {
     Name        = "${local.name_prefix}-ws-from-alb"
-    environment = var.environment
+    environment = local.environment
   }
 }
 
@@ -75,12 +75,12 @@ resource "aws_vpc_security_group_egress_rule" "alb_to_ws" {
   security_group_id            = module.alb.alb_security_group_id
   referenced_security_group_id = module.ws.security_group_id
   ip_protocol                  = "tcp"
-  from_port                    = var.ws_port
-  to_port                      = var.ws_port
+  from_port                    = module.ws.port
+  to_port                      = module.ws.port
 
   tags = {
     Name        = "${local.name_prefix}-alb-to-ws"
-    environment = var.environment
+    environment = local.environment
   }
 }
 
@@ -88,12 +88,12 @@ resource "aws_vpc_security_group_ingress_rule" "ai_from_be" {
   security_group_id            = module.ai.security_group_id
   referenced_security_group_id = module.be.security_group_id
   ip_protocol                  = "tcp"
-  from_port                    = var.ai_port
-  to_port                      = var.ai_port
+  from_port                    = module.ai.port
+  to_port                      = module.ai.port
 
   tags = {
     Name        = "${local.name_prefix}-ai-from-be"
-    environment = var.environment
+    environment = local.environment
   }
 }
 
@@ -133,7 +133,7 @@ resource "aws_vpc_security_group_ingress_rule" "additional_ecs_database" {
 
   tags = {
     Name        = "${local.name_prefix}-${each.value.database}-from-${each.value.service}"
-    environment = var.environment
+    environment = local.environment
   }
 }
 
@@ -141,13 +141,13 @@ resource "aws_vpc_security_group_ingress_rule" "ai_from_ws" {
   security_group_id            = module.ai.security_group_id
   referenced_security_group_id = module.ws.security_group_id
   ip_protocol                  = "tcp"
-  from_port                    = var.ai_port
-  to_port                      = var.ai_port
+  from_port                    = module.ai.port
+  to_port                      = module.ai.port
   description                  = "AI practice calls from ECS websocket workers"
 
   tags = {
     Name        = "${local.name_prefix}-ai-from-ws"
-    environment = var.environment
+    environment = local.environment
   }
 }
 
@@ -162,7 +162,7 @@ resource "aws_vpc_security_group_ingress_rule" "v1_database_from_ecs" {
 
   tags = {
     Name        = "${local.name_prefix}-v1-${each.value.database}-from-${each.value.service}"
-    environment = var.environment
+    environment = local.environment
   }
 
   # Cross-VPC security group references require an active peering connection.

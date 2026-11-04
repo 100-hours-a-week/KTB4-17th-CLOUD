@@ -1,5 +1,11 @@
-# V1 dev EC2
+# 개발 인프라
 
-`ec2`의 app/messaging과 `database`의 data EC2 3대의 독립 dev 코드다. backend는 같은 bucket의 `dev/terraform.tfstate`이며 아직 원격 state를 생성하거나 리소스를 편입하지 않았다.
+독립 실행 루트이며 backend는 `dev/terraform.tfstate`다. 기존 V1 네트워크·SG·EIP·IAM은 참조하고 EC2 3개만 소유한다. 운영 루트와 합쳐 실행하지 않는다.
 
-현재 state가 없는 상태에서 이 루트에 일반 plan을 하면 생성 제안이 나타날 수 있다. 먼저 [정확한 소유권·private adoption preview와 승인 경계](../../docs/terraform-environment-separation.md)를 확인한다. apply/import 실행은 이번 작업에 포함되지 않는다. 기존 SG·VPC·IAM·EIP는 참조만 하며 별도로 소유하지 않는다.
+```sh
+terraform -chdir=terraform/dev init -input=false -lockfile=readonly
+terraform -chdir=terraform/dev validate
+terraform -chdir=terraform/dev plan -input=false -lock-timeout=60s
+```
+
+`versions.tf`와 lockfile은 실행 루트의 Terraform/provider 버전을 고정한다. child는 기존 파일에 `hashicorp/aws` 요구사항을 선언하고 루트 provider 설정을 상속한다. state·plan은 저장소 밖 권한 제한 경로에 보관한다.
