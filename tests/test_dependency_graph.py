@@ -58,9 +58,9 @@ RULES = {
 
 def assert_network_order(test, graph):
     assert_order(test, graph)
-    alb_output = node("module.network.output.alb_security_group_id")
+    alb_output = node("module.alb.output.alb_security_group_id")
     for rule in ("alb_http", "alb_https"):
-        prerequisite = node(f"module.network.aws_vpc_security_group_ingress_rule.{rule}")
+        prerequisite = node(f"module.alb.aws_vpc_security_group_ingress_rule.{rule}")
         test.assertIn(prerequisite, dependencies(graph, alb_output))
         test.assertIn(prerequisite, dependencies(graph, node("module.alb.aws_alb.main")))
     for service, rules in RULES.items():
@@ -102,9 +102,9 @@ class DependencyGraphTests(unittest.TestCase):
     def test_secret_version_then_ai_then_only_be_service(self):
         assert_order(self, self.graph)
         for service in ("ai", "be"):
-            source = (ROOT / f"terraform/prod/modules/ecs/services/{service}/main.tf").read_text()
+            source = (ROOT / f"terraform/prod/ecs/service/{service}/main.tf").read_text()
             self.assertRegex(source, r"wait_for_steady_state\s*=\s*true")
-        self.assertIn("healthCheck =", (ROOT / "terraform/prod/modules/ecs/services/ai/main.tf").read_text())
+        self.assertIn("healthCheck =", (ROOT / "terraform/prod/ecs/service/ai/main.tf").read_text())
 
     def test_regression_proof_rejects_missing_edges_and_module_wide_gate(self):
         for address in ("module.ai.var.backend_config_references", "module.be.var.ai_service_name"):
@@ -118,13 +118,38 @@ class DependencyGraphTests(unittest.TestCase):
             assert_order(self, broken)
 
 
+    def test_nested_network_readiness_is_reachable(self):
+        required = {
+            "module.alb.aws_alb.main": (
+                "module.network.module.vpc.aws_internet_gateway.main",
+                "module.network.module.routetable.aws_route.public_internet",
+                "module.network.module.routetable.aws_route_table_association.public",
+            ),
+            "module.be.aws_ecs_service.be": (
+                "module.network.module.routetable.aws_route.app_nat",
+                "module.network.module.routetable.aws_route_table_association.application",
+                "module.network.aws_route.application_to_v1_database",
+                "module.network.aws_route.v1_database_to_application",
+            ),
+            "module.database.aws_db_subnet_group.postgres": (
+                "module.network.module.routetable.aws_route_table_association.data",
+            ),
+            "module.database.aws_db_subnet_group.mysql": (
+                "module.network.module.routetable.aws_route_table_association.data",
+            ),
+        }
+        for dependent, prerequisites in required.items():
+            for prerequisite in prerequisites:
+                with self.subTest(dependent=dependent, prerequisite=prerequisite):
+                    self.assertIn(node(prerequisite), dependencies(self.graph, node(dependent)))
+
     def test_network_readiness_on_service_nodes_only(self):
         assert_network_order(self, self.graph)
 
     def test_each_missing_network_gate_is_rejected(self):
         gates = [
             (node("module.be.aws_ecs_service.be"), node("module.be.aws_vpc_security_group_egress_rule.app_outbound_rule")),
-            *((node("module.network.output.alb_security_group_id"), node(f"module.network.aws_vpc_security_group_ingress_rule.{rule}")) for rule in ("alb_http", "alb_https")),
+            *((node("module.alb.output.alb_security_group_id"), node(f"module.alb.aws_vpc_security_group_ingress_rule.{rule}")) for rule in ("alb_http", "alb_https")),
         ]
         for service, rules in RULES.items():
             token = node(f"module.{service}.var.traffic_rule_ids")
@@ -142,10 +167,10 @@ class DependencyGraphTests(unittest.TestCase):
         # Regenerate real graphs from each regressed source category, as well as
         # testing every individual edge above. No backend or AWS writes occur.
         mutations = [
-            ("modules/ecs/services/be/main.tf", ", aws_vpc_security_group_egress_rule.app_outbound_rule", ""),
-            ("modules/network/outputs.tf", "    aws_vpc_security_group_ingress_rule.alb_http,", ""),
-            ("modules/network/outputs.tf", "    aws_vpc_security_group_ingress_rule.alb_https,", ""),
-            *((f"modules/ecs/services/{service}/main.tf", ", var.traffic_rule_ids", "") for service in RULES),
+            ("ecs/service/be/main.tf", ", aws_vpc_security_group_egress_rule.app_outbound_rule", ""),
+            ("alb/outputs.tf", "    aws_vpc_security_group_ingress_rule.alb_http,", ""),
+            ("alb/outputs.tf", "    aws_vpc_security_group_ingress_rule.alb_https,", ""),
+            *((f"ecs/service/{service}/main.tf", ", var.traffic_rule_ids", "") for service in RULES),
         ]
         with tempfile.TemporaryDirectory() as directory:
             copy = Path(directory) / "terraform/prod"

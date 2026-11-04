@@ -19,7 +19,9 @@ class EnvironmentSeparationTests(unittest.TestCase):
             self.assertFalse((ROOT / "terraform" / obsolete).exists())
         for env in ("dev", "prod"):
             root = ROOT / "terraform" / env
-            self.assertTrue((root / "modules").is_dir())
+            self.assertFalse((root / "modules").exists())
+            for name in ("vpc", "subnet", "routetable"):
+                self.assertTrue((root / "network" / name).is_dir())
             for f in root.rglob("*.tf"):
                 if ".terraform" in f.parts:
                     continue
@@ -27,7 +29,7 @@ class EnvironmentSeparationTests(unittest.TestCase):
                     target = (f.parent / source).resolve()
                     self.assertTrue(target.is_dir())
                     self.assertIn(root.resolve(), target.parents)
-        self.assertIn('source = "../modules/cloudwatch-loki"',
+        self.assertIn('source = "./forwarder"',
                       (ROOT / "terraform/prod/cloudwatch-loki/main.tf").read_text())
 
     def test_dev_graph_has_only_bounded_ec2_ownership(self):
@@ -38,21 +40,22 @@ class EnvironmentSeparationTests(unittest.TestCase):
                             ignore=shutil.ignore_patterns(".terraform"))
             (folder / "backend.tf").unlink()
             (folder / ".terraform").mkdir()
-            (folder / ".terraform/providers").symlink_to(
-                ROOT / "terraform/dev/.terraform/providers", target_is_directory=True)
+            cache = ROOT / "terraform/dev/.terraform/providers"
+            if cache.is_dir():
+                (folder / ".terraform/providers").symlink_to(cache, target_is_directory=True)
             subprocess.run(["terraform", f"-chdir={folder}", "init", "-backend=false", "-input=false",
                             "-lockfile=readonly"], capture_output=True, text=True, check=True)
             result = subprocess.run(["terraform", f"-chdir={folder}", "graph", "-type=plan"],
                                     capture_output=True, text=True, check=True)
-        owned = set(re.findall(r'\[root\] (module\.ec2\.aws_\w+\.\w+) \(expand\)', result.stdout))
-        self.assertEqual(owned, {"module.ec2.aws_instance." + n for n in ("app", "data", "messaging")})
-        source = (ROOT / "terraform/dev/modules/ec2/main.tf").read_text()
+        owned = {a for a in re.findall(r'\[root\] (module\.[^\s]+\.aws_\w+\.\w+) \(expand\)', result.stdout) if ".data.aws_" not in a}
+        self.assertEqual(owned, {"module.ec2.aws_instance.app", "module.ec2.aws_instance.messaging", "module.database.aws_instance.data"})
+        source = "\n".join(p.read_text() for folder in ("ec2", "database") for p in (ROOT / "terraform/dev" / folder).glob("*.tf"))
         self.assertNotIn("ignore_changes", source)
         self.assertNotIn('resource "aws_security_group', source)
         self.assertNotIn('resource "aws_route', source)
 
     def test_dev_adoption_rejects_missing_extra_wrong_and_unknown_ids(self):
-        imports = {"module.ec2.aws_instance." + n: "i-fixture-" + n for n in ("app", "data", "messaging")}
+        imports = {("module.database" if n == "data" else "module.ec2") + ".aws_instance." + n: "i-fixture-" + n for n in ("app", "data", "messaging")}
         manifest = {"imports": imports, "moves": {}, "forget": {}}
         changes = [{"address": a, "mode": "managed", "change": {
             "actions": ["no-op"], "importing": {"id": i}, "after": {"id": i},
