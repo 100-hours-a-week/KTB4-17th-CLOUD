@@ -1,4 +1,4 @@
-# #5 환경별 리소스 모듈과 서비스 소유권 — draft PR #14
+# #5 환경별 리소스 모듈과 서비스 소유권 — PR #14
 
 최신 검증과 dev 외부 자원별 근거는 [환경 분리 검증](terraform-environment-separation.md)을 따른다.
 V1 dev와 V2 prod의 `main.tf`는 각 환경 바로 아래 실제 리소스 모듈을 조합한다.
@@ -12,8 +12,8 @@ dev는 `ec2`가 app/messaging, `database`가 data EC2를 소유하며 network와
 
 | root | bucket `star23-tfstate-975779326240`의 key | 상태 |
 | --- | --- | --- |
-| terraform/dev | dev/terraform.tfstate | 원격 object 없음, private empty-state preview만 실행 |
-| terraform/prod | prod/terraform.tfstate | serial29 유지, state 전환 미실행 |
+| terraform/dev | dev/terraform.tfstate | EC2 3대 편입 완료, serial1 |
+| terraform/prod | prod/terraform.tfstate | state 주소 정리 완료, 기존 lineage 유지, serial30 |
 | terraform/prod/cloudwatch-loki | prod/cloudwatch-loki/terraform.tfstate | serial4 유지, 기존 module.cloudwatch_loki 주소 보존 |
 
 공유 CloudFront/S3/ECR는 prod 단일 소유다. dev alias를 근거로 중복 편입하지 않는다.
@@ -41,9 +41,24 @@ WS SG/egress와 연결 규칙은 기존 모델처럼 WS enable 여부와 별개�
 WS task/service/IAM/log만 enable 조건을 따른다.
 
 
-## 최종 소스의 읽기 전용 검증
+## 실제 state 전환과 최종 정상 소스 검증
 
-2026-11-04 account975779326240/IAMnoel/regionap-northeast-2에서 최종 소스로 새로 생성했다.
+2026-11-04 실행 승인 후 최신 소유권과 실제 S3 backend plan을 재검증하고 versioned 백업을 확보했다.
+잠금 아래 prod 121 move/7 import/2 forget과 dev 3 import를 순서대로 적용했다.
+prod 기존 137개 ID를 보존한 144개 managed 객체, dev 3개 정확한 ID를 확인했다.
+Loki/staging 계열 state와 EIP allocation/association은 그대로다.
+
+임시 선언 제거 후 실제 저장소 dev/prod/Loki 세 루트의 full-refresh plan은 detailed exit 0,
+create/update/delete/replace/import/forget/move 모두 0이다. prod output 8개도 no-op이다.
+ALB chat rule의 중복 top-level target_group_arn만 제거해 provider 읽기 표현에 맞췄으며,
+실제 forward 대상/weight/stickiness/priority/경로를 바꾸거나 AWS update plan을 적용하지 않았다.
+현재 소스 SHA256은 `21c367d55eb4740734cf27d2b6475fedc133306954b4c354d63329dd4924cc94`,
+현재 실제 graph SHA256은 `2d4a4d7bf3afc29f00aa132cf2aa72d5e9b7fe5528cc78dd52770e496881ec13` (698 edges)다.
+수정 후 전체 테스트 27개가 통과했다. 상세 실행·백업·최종 시각은 [환경 분리 검증](terraform-environment-separation.md)을 따른다.
+
+## 전환 전 읽기 전용 preview 기록
+
+아래는 2026-11-04 account975779326240/IAMnoel/regionap-northeast-2의 실행 전 기록이다.
 prod는 private 사본의 임시 moved/import/removed, dev는 backend 없는 private 빈 state의 임시 import만 사용했다.
 원격 state와 AWS 객체에 쓰지 않았고, full refresh에 target/refresh 생략 또는 dummy Secret을 사용하지 않았다.
 
@@ -55,39 +70,40 @@ prod는 private 사본의 임시 moved/import/removed, dev는 backend 없는 pri
 
 세 plan complete=true/errored=false/deferred 없음. prod 기존 137개 ID와 모든 기존 객체의 no-op,
 두 RDS, ALB idle120/chat route, 공유 CDN 구성, live CI task revision/desired count 3개를 유지한다.
-prod steady source가 현재 remote state에서 no-op이 되었다거나 dev가 실제 편입되었다는 의미가 아니다.
-다섯 backend의 bytes/lineage/serial은 전후 동일하며 dev key는 없다.
+당시 preview 자체는 실제 편입 결과가 아니었다. 당시 다섯 backend의 bytes/lineage/serial은
+전후 동일했고 dev key가 없었다. 현재 편입 완료와 정상 소스 no-op은 위 절에서 별도로 검증했다.
 
 `check_readonly_plan.py`는 모든 AWS write/replacement, incomplete/errored/deferred, action invocation,
 미승인·누락·추가 import/move/forget, move 전후 ID 불일치/unknown을 거절한다.
-`verify_environment_previews.py`는 최종 소스 해시와 private 사본, 정확한 manifest, 기존 ID 전체,
-5개 remote snapshot 동일성, dev 중복 소유권 부재와 live CI revision을 검사한다.
+`verify_environment_previews.py`는 전환 전 소스 해시와 private 사본, 정확한 manifest, 기존 ID 전체,
+5개 remote snapshot 동일성, dev 중복 소유권 부재와 live CI revision을 검사했던 역사적 증거용이다.
+현재 일상 plan은 manifest 없는 `check_readonly_plan.py`로 검증한다.
 27개 unittest는 실제 Terraform graph, 소스 변이, 조건부 V1/WS/AI DB 입력 96개 결과,
 서비스별 readiness와 module-wide gate/cycle 부재를 검사한다. 새 중첩 network 경로도 검증한다.
 provider cache 없는 clean 사본의 환경 테스트 3개도 통과했다.
 
-최종 소스 집합 SHA256: `c8a22fca4e4de40d44f91d362f0569ba1e37704ac7cbd90b9431cbeec9a754f1`.
-실제 prod graph SHA256: `04e7a8039ae2e34b8f1965e2960cc56a989e038807572b02f340d8ee439a9644`, 1024 edges.
+전환 전 소스 집합 SHA256: `c8a22fca4e4de40d44f91d362f0569ba1e37704ac7cbd90b9431cbeec9a754f1`.
+전환 전 prod graph SHA256: `04e7a8039ae2e34b8f1965e2960cc56a989e038807572b02f340d8ee439a9644`, 1024 edges.
 
 재검증 명령과 제외 dev 자원별 근거는 [환경 분리 검증](terraform-environment-separation.md)에 있다.
 raw state/plan/tfvars/Secret/ZIP/.terraform은 저장소 밖 private 파일로만 보관한다.
 tracked import/moved/removed 블록과 영구 migration 디렉터리는 없다.
 
-## 정확한 미실행 import / forget 제안
+## 실행한 정확한 import / forget 기록
 
 | 동작 | 주소 | 정확한 기존 ID |
 | --- | --- | --- |
-| imports 제안 | `module.cdn.aws_cloudfront_distribution.fe` | `E3LYSMQO2T1UT` |
-| imports 제안 | `module.storage.aws_ecr_repository.be` | `star23/be` |
-| imports 제안 | `module.storage.aws_ecr_repository.ai` | `star23/ai` |
-| imports 제안 | `module.storage.aws_s3_bucket.fe` | `star23-s3-deploy-bucket-975779326240-ap-northeast-2-an` |
-| imports 제안 | `module.storage.aws_s3_bucket.image` | `star23-images` |
-| imports 제안 | `module.alb.aws_lb_listener_rule.chat_routes` | `arn:aws:elasticloadbalancing:ap-northeast-2:975779326240:listener-rule/app/star23-alb/1ca5051586e3c967/7486e2341aeaa359/a1bcba60b2a96fb8` |
-| imports 제안 | `aws_vpc_security_group_ingress_rule.ai_from_ws` | `sgr-0030fb498843e37b8` |
-| forget 제안 | `module.alb.aws_lb_listener_rule.ws` | `arn:aws:elasticloadbalancing:ap-northeast-2:975779326240:listener-rule/app/star23-alb/1ca5051586e3c967/7486e2341aeaa359/f8cd5cf50f103400` |
-| forget 제안 | `module.alb.aws_lb_listener_rule.ws_ai_practice` | `arn:aws:elasticloadbalancing:ap-northeast-2:975779326240:listener-rule/app/star23-alb/1ca5051586e3c967/7486e2341aeaa359/0abaf0678dd25457` |
+| import 완료 | `module.cdn.aws_cloudfront_distribution.fe` | `E3LYSMQO2T1UT` |
+| import 완료 | `module.storage.aws_ecr_repository.be` | `star23/be` |
+| import 완료 | `module.storage.aws_ecr_repository.ai` | `star23/ai` |
+| import 완료 | `module.storage.aws_s3_bucket.fe` | `star23-s3-deploy-bucket-975779326240-ap-northeast-2-an` |
+| import 완료 | `module.storage.aws_s3_bucket.image` | `star23-images` |
+| import 완료 | `module.alb.aws_lb_listener_rule.chat_routes` | `arn:aws:elasticloadbalancing:ap-northeast-2:975779326240:listener-rule/app/star23-alb/1ca5051586e3c967/7486e2341aeaa359/a1bcba60b2a96fb8` |
+| import 완료 | `aws_vpc_security_group_ingress_rule.ai_from_ws` | `sgr-0030fb498843e37b8` |
+| forget 완료 | `module.alb.aws_lb_listener_rule.ws` | `arn:aws:elasticloadbalancing:ap-northeast-2:975779326240:listener-rule/app/star23-alb/1ca5051586e3c967/7486e2341aeaa359/f8cd5cf50f103400` |
+| forget 완료 | `module.alb.aws_lb_listener_rule.ws_ai_practice` | `arn:aws:elasticloadbalancing:ap-northeast-2:975779326240:listener-rule/app/star23-alb/1ca5051586e3c967/7486e2341aeaa359/0abaf0678dd25457` |
 
-두 forget은 사라진 ALB 규칙의 state 기록만 해제하는 제안이며 AWS 삭제가 아니다.
+두 forget은 이미 사라진 ALB 규칙의 state 기록만 해제했으며 AWS 삭제가 아니다.
 
 ## 정확한 주소 이동 / 기존 ID 유지 표 (121건)
 
@@ -238,9 +254,9 @@ tracked import/moved/removed 블록과 영구 migration 디렉터리는 없다.
 | `module.network.aws_route.v1_database_to_application["rtb-07a5c07f85fda1ee1-2c"]` | `r-rtb-07a5c07f85fda1ee13055201829` |
 | `module.network.aws_vpc_peering_connection.v1_database["v1"]` | `pcx-09f9b6ffb8454c7b9` |
 
-## 남은 별도 운영 단계
+## 현재 운영과 남은 소유권 작업
 
-코드와 preview만 준비했다. actual remote state 전환/adoption은 실행하지 않았다.
-향후 별도 승인된 state-only 절차에서도 최신 live 소유권/lineage/serial과 전체 plan을 재확인해야 한다.
-정합성 반영 뒤 임시 선언을 제거한 steady source로 full-refresh no-op을 별도 검증해야 한다.
-현재 #5 OPEN / PR #14 DRAFT 유지, Refs #5다. AWS/DNS/IAM 변경·EIP 정리·merge·issue 종료는 범위 밖이다.
+승인한 state 전환과 dev EC2 편입 및 세 실제 루트의 최종 full-refresh no-op 검증을 완료했다.
+이전 전환 plan을 재적용하지 않는다. 최신 소스로 일반 plan을 만들고 모든 변경을 검토한다.
+#5는 dev 공유 V1 네트워크/SG/EIP/IAM의 추가 소유권 편입을 추적하며, EIP 정리는 #12에서 진행한다.
+현재 편입 범위 밖 자원의 근거와 일상 명령은 환경 분리 문서에 있다. AWS 리소스·DNS·IAM은 변경하지 않았다.
