@@ -1,32 +1,30 @@
-# #5 서비스 중심 Terraform — 코드/리뷰 단계
+# #5 환경별 리소스 모듈과 서비스 소유권 — draft PR #14
 
-이 변경은 운영 ECS의 소유권을 서비스 단위로 재구성한다. **실제 원격 state 정합성
-반영은 미실행**이며, #5는 열어 둔다. PR은 main 대상 Draft로 유지하며 merge하지 않는다.
-기준 커밋은 #13을 merge한 `d6da1e92d26fdf0c4105586c277c7f1395fc29c9`다.
-기존 기준선의 다섯 커밋을 보존하고 #5 커밋만 추가한다.
+최신 검증과 dev 외부 자원별 근거는 [환경 분리 검증](terraform-environment-separation.md)을 따른다.
+V1 dev와 V2 prod의 `main.tf`는 각 환경 바로 아래 실제 리소스 모듈을 조합한다.
+`modules/` 또는 `environments/` wrapper와 옛 실행 가능한 `terraform/*.tf`는 없다.
 
-## 환경 실행 경로와 단일 소유권
+prod `network/{vpc,subnet,routetable}`은 VPC/IGW, 계층 subnet, route table/association/default route를
+각각 소유한다. NAT와 V1 peering/양방향 route는 network 부모에 유지한다.
+ALB SG와 HTTP/HTTPS base rule은 `alb/security.tf`, MySQL·PostgreSQL SG는 `database/security.tf`,
+ECS SG/egress는 `ecs/service/{be,ws,ai}/security.tf`, 교차 규칙은 prod `connections.tf`에 둔다.
+dev는 `ec2`가 app/messaging, `database`가 data EC2를 소유하며 network와 legacy SG는 외부 참조다.
 
-| 환경 / 성격 | 실행 루트 | 기존 backend key | 단일 소유자와 범위 |
-| --- | --- | --- | --- |
-| prod V2 ECS | `terraform` | `prod/terraform.tfstate` | `module.cluster`, `module.be`, `module.ws`, `module.ai`, shared network/ALB/database/storage/CDN, 루트 SG 연결 |
-| prod 로그 전송 | `terraform/cloudwatch-loki` | `prod/cloudwatch-loki/terraform.tfstate` | 기존 Lambda/IAM/전용 SG/구독만; ECS 로그 그룹은 data 조회 |
-| dev V1 EC2 | 현재 관리 root 없음, inventory-only | dev EC2 소유 backend 미확정 | 기존 EC2/DB/SG 자체의 신규 편입은 보류; prod가 이미 소유한 peering·추가 route/SG rule만 보존 |
-| 공유 객체 | 기존 prod root 안의 명시적 소유자 | prod key 유지 | network: VPC/subnets/NAT/routes·ALB/DB SG; database: MySQL·PostgreSQL; storage: ECR/S3; cdn: 공유 CloudFront |
-| 공유 앱 Secret | `module.be` | prod key 유지 | 기존 Secret/version·SSM은 한 곳만 생성; WS/AI에는 필요한 ARN 참조 전달 |
+| root | bucket `star23-tfstate-975779326240`의 key | 상태 |
+| --- | --- | --- |
+| terraform/dev | dev/terraform.tfstate | 원격 object 없음, private empty-state preview만 실행 |
+| terraform/prod | prod/terraform.tfstate | serial29 유지, state 전환 미실행 |
+| terraform/prod/cloudwatch-loki | prod/cloudwatch-loki/terraform.tfstate | serial4 유지, 기존 module.cloudwatch_loki 주소 보존 |
 
-backend bucket은 두 root 모두 `star23-tfstate-975779326240`, region은
-`ap-northeast-2`다. root 디렉터리 이동이나 state 분할은 하지 않는다.
-`terraform`은 명시적인 prod entrypoint이며 environment 입력만 dev로 바꿔 실행하지 않는다.
-retired staging은 dev로 이름을 바꾸거나 재생성하지 않는다. 공유 CloudFront의 기존
-`dev`·`stag` alias/Function 이름은 ECS 환경 복원과 무관하며 그대로 유지한다.
+공유 CloudFront/S3/ECR는 prod 단일 소유다. dev alias를 근거로 중복 편입하지 않는다.
+기준 main `d6da1e92d26fdf0c4105586c277c7f1395fc29c9`, published 8개와 checkpoint `62cd3c8`을 보존한다.
 
 ## 서비스 설계
 
-- `modules/ecs/cluster`: 공유 cluster/namespace.
-- `modules/ecs/services/be`: BE task/service, SG/egress, 기존 IAM, logs, SSM 및 공유 Secret/version 소유.
-- `modules/ecs/services/ws`: WS task/service, 전용 SG/egress·IAM·logs·S3 정책과 config/secret 참조를 서비스 폴더에서 직접 소유.
-- `modules/ecs/services/ai`: AI task/service, 전용 SG/egress·IAM·logs와 config/secret·CI 리비전 추가 secret 권한을 직접 소유.
+- `ecs/cluster`: 공유 cluster/namespace.
+- `ecs/service/be`: BE task/service, SG/egress, 기존 IAM, logs, SSM 및 공유 Secret/version 소유.
+- `ecs/service/ws`: WS task/service, 전용 SG/egress·IAM·logs·S3 정책과 config/secret 참조를 서비스 폴더에서 직접 소유.
+- `ecs/service/ai`: AI task/service, 전용 SG/egress·IAM·logs와 config/secret·CI 리비전 추가 secret 권한을 직접 소유.
 - `connections.tf`: 서비스/ALB/DB 간 SG edge를 단독 소유한다. 서비스 모듈 간 역참조와 network→service 순환을 만들지 않는다.
 
 root가 cluster ID/namespace ARN, 선택한 subnet IDs, ALB target group ARN,
@@ -42,147 +40,56 @@ BE 모듈 전체의 AI 의존성, 순환, 인위적인 readiness 리소스는 �
 WS SG/egress와 연결 규칙은 기존 모델처럼 WS enable 여부와 별개로 소유하며,
 WS task/service/IAM/log만 enable 조건을 따른다.
 
-## 검증된 읽기 전용 결과
 
-2026-11-03, account `975779326240`, IAM user `noel`, Seoul region으로 다시 조회했다.
-기존 private 입력을 재사용하고, state가 가리키는 실제 Secret version을 다시 읽어
-권한 제한 파일의 ephemeral 입력으로만 전달했다. dummy secret이나 refresh 생략,
-`-target`을 사용하지 않았다. provider는 기존 lock의 AWS 6.71.0이다. 아래 결과는 리뷰 교정 최종 소스로 다시 생성한 plan이다.
+## 최종 소스의 읽기 전용 검증
 
-| 전체 refresh plan | complete | errored | create | update | delete | replace | import | forget | 주소 이동 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| private ONE-OFF 주입 prod 사본 | true | false | 0 | 0 | 0 | 0 | 7 | 2 | 94 |
-| 기존 별도 Loki root | true | false | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+2026-11-04 account975779326240/IAMnoel/regionap-northeast-2에서 최종 소스로 새로 생성했다.
+prod는 private 사본의 임시 moved/import/removed, dev는 backend 없는 private 빈 state의 임시 import만 사용했다.
+원격 state와 AWS 객체에 쓰지 않았고, full refresh에 target/refresh 생략 또는 dummy Secret을 사용하지 않았다.
 
-위 prod 결과는 **state-only 제안이 포함된 migration plan**이며 실제 state를 옮긴
-결과나 최종 steady-source no-op 결과가 아니다. 실제 정합성 반영 전에는 tracked
-steady source만으로 prod plan을 성공이라고 주장할 수 없다.
+| plan | create | update | delete | replace | import | forget | move |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| prod state-only 제안 | 0 | 0 | 0 | 0 | 7 | 2 | 121 |
+| 독립 Loki | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| dev import-only 제안 | 0 | 0 | 0 | 0 | 3 | 0 | 0 |
 
-`terraform fmt -check -recursive terraform`, 두 runnable root의 `terraform validate`,
-`python3 -m unittest discover -s tests -v` (23개)가 통과했다. 테스트는 모든 AWS write와
-양방향 replacement, 불완전/errored/deferred plan, 임의/누락/ID 불일치 state 동작,
-이동 전·후 ID와 unknown ID, action/deferred-action invocation 차단,
-중복 주소, private 값 비출력, backend 경계, CI revision 소유권과 migration 블록 부재를 검사한다.
-`check_readonly_plan.py`는 manifest 없이는 state 동작도 허용하지 않으며, migration에서는
-정확한 imports/forget/moves 전체 집합이 일치해야 한다. 각 move는 검증한 원본
-state의 기존 ID를 manifest에 저장하고 plan의 before.id와 after.id 양쪽과 대조한다.
-`tests/test_dependency_graph.py`는 `terraform graph -type=plan`의 실제 그래프에서
-Secret → version → AI task/service → BE service 경로와 아래 네트워크 준비 경로를 검사한다.
+세 plan complete=true/errored=false/deferred 없음. prod 기존 137개 ID와 모든 기존 객체의 no-op,
+두 RDS, ALB idle120/chat route, 공유 CDN 구성, live CI task revision/desired count 3개를 유지한다.
+prod steady source가 현재 remote state에서 no-op이 되었다거나 dev가 실제 편입되었다는 의미가 아니다.
+다섯 backend의 bytes/lineage/serial은 전후 동일하며 dev key는 없다.
 
-| 복구 범위 | 실제 선행 조건 | 소비 노드 |
-| --- | --- | --- |
-| BE 자체 outbound | `module.be.aws_vpc_security_group_egress_rule.app_outbound_rule` | BE ECS service만 |
-| network ALB SG 출력 | network 소유 `alb_http`, `alb_https` | SG 출력 → ALB 및 기존 listener 경로 |
-| BE root 연결 | `alb_to_app`, `app_from_alb`, `mysql_from_app`, `postgres_from_app`, `ai_from_be`, 설정된 BE V1 DB ingress | BE ECS service만 |
-| WS root 연결 | `ws_from_alb`, `alb_to_ws`, `ai_from_ws`, 설정된 WS DB/V1 DB ingress | WS ECS service만 |
-| AI root 연결 | `ai_from_be`, `ai_from_ws`, 설정된 AI DB/V1 DB ingress | AI ECS service만 |
+`check_readonly_plan.py`는 모든 AWS write/replacement, incomplete/errored/deferred, action invocation,
+미승인·누락·추가 import/move/forget, move 전후 ID 불일치/unknown을 거절한다.
+`verify_environment_previews.py`는 최종 소스 해시와 private 사본, 정확한 manifest, 기존 ID 전체,
+5개 remote snapshot 동일성, dev 중복 소유권 부재와 live CI revision을 검사한다.
+27개 unittest는 실제 Terraform graph, 소스 변이, 조건부 V1/WS/AI DB 입력 96개 결과,
+서비스별 readiness와 module-wide gate/cycle 부재를 검사한다. 새 중첩 network 경로도 검증한다.
+provider cache 없는 clean 사본의 환경 테스트 3개도 통과했다.
 
-서비스별 `traffic_rule_ids`는 root가 해당 서비스의 규칙 ID만 선택해 전달하는 완료 토큰이다.
-새 리소스나 모듈 전체 `depends_on`을 만들지 않는다. 기존 DB 규칙의 for_each 주소를 유지하며,
-조건부 규칙이 없으면 빈 목록을 전달한다. Secret/config/task/SG/IAM/log는 이 입력을 기다리지 않는다.
-WS에 HTTP listener 또는 AI service 대기를 추가하지 않는다.
+최종 소스 집합 SHA256: `c8a22fca4e4de40d44f91d362f0569ba1e37704ac7cbd90b9431cbeec9a754f1`.
+실제 prod graph SHA256: `04e7a8039ae2e34b8f1965e2960cc56a989e038807572b02f340d8ee439a9644`, 1024 edges.
 
-실제 그래프에서 각 필수 edge를 제거한 음성 검사, 소스를 임시 사본에서 되돌려 Terraform이
-다시 만든 여섯 그래프(BE outbound, ALB ingress 각각, 서비스별 root 입력 각각)의 거절,
-모듈 전체 gate·순환의 거절을 확인한다. 모든 BE 비서비스 리소스는 AI service와 독립적이다.
-조건부 DB/V1 입력은 V1 유무 × WS/AI의 모든 MySQL/PostgreSQL 부분집합 × 세 서비스,
-총 96개 결과를 실제 root 표현식으로 Terraform console에서 평가한다.
-현재 객체의 no-op 여부에 기대지 않는 생성/복구 순서 검증이다.
-
-네트워크 복구 최종 소스로 전체 refresh plan을 **2026-11-03T11:51:07Z (prod),
-2026-11-03T11:50:55Z (Loki)** 에 새로 생성했다. 위 표의 action 집계와 정확한
-94 move/7 import/2 forget 주소·ID는 기존 검토 manifest와 동일하다. 최종 `.tf` 전체의
-SHA-256을 private 사본과 대조했으며, 새 graph/source snapshot/plan 및 전후 remote snapshot은
-`service-modules-private/network-readiness/`에만 보관한다. 이전 plan을 새 증거로 재사용하지 않았다.
-
-운영과 별도 Loki 및 세 staging state를 읽어 import 대상의 중복 managed 소유권이
-없음을 재확인했다. prod serial 29, Loki serial 4이며, 검증 전후 state bytes와
-lineage/serial이 동일함을 확인했다. 나머지 세 state도 동일성을 확인했다.
-이 실행은 AWS read API, backend 초기화, `-lock=false` plan만 사용한다.
-apply/destroy/import/state mv/rm/push, AWS·DNS·IAM 쓰기, merge, EIP 정리를 하지 않는다.
-원본 dirty 저장소와 이전 worktree는 변경하지 않는다.
-
-prod의 두 RDS, ALB HTTP/HTTPS·priority-1 chat 경로, WS/AI 통신과 DB 규칙,
-CloudFront의 모든 alias/origin/behavior/Function 연결을 그대로 보존한다.
-전체 plan의 각 managed 리소스에서 ID와 no-op을 대조했고, 서비스 실제 배포 revision도
-추가 읽기 조회로 확인했다. Loki의 source와 backend는 이 PR에서 변경하지 않는다.
-
-## 재검증과 비공개 ONE-OFF 보관
-
-권한 제한 저장소 밖 sibling `service-modules-private/`에 원격 snapshot, manifest,
-`production/ONE-OFF.tf`, full binary/JSON plan, 입력과 API 증거를 보관한다.
-원본 과거 reconciliation 선언도 그곳에만 보관한다. tracked `.tf` 전체에는
-`import`/`moved`/`removed` 블록이 0개다. 영구 migration 디렉터리를 만들지 않는다.
-raw state/plan/secret/tfvars/ZIP/.terraform/.ouroboros는 commit/PR에 올리지 않는다.
-
-운영자는 private 입력과 artifact 경로를 환경 변수로 지정한 뒤 다음과 같이
-검증할 수 있다. `MIGRATION_COPY`는 제출 소스와 동일하고 이 문서의 정확한 주소만
-ONE-OFF로 추가한 private 사본이며, 원래 prod backend identity를 그대로 사용한다.
-
-```bash
-umask 077
-terraform fmt -check -recursive terraform
-terraform -chdir=terraform init -input=false -lockfile=readonly
-terraform -chdir=terraform validate
-terraform -chdir=terraform/cloudwatch-loki init -input=false -lockfile=readonly
-terraform/cloudwatch-loki/fetch-package.sh
-terraform -chdir=terraform/cloudwatch-loki validate
-python3 -m unittest discover -s tests -v
-terraform -chdir="$MIGRATION_COPY" init -input=false -lockfile=readonly
-terraform -chdir="$MIGRATION_COPY" validate
-terraform -chdir="$MIGRATION_COPY" plan -lock=false -input=false \
-  -var-file="$PROD_INPUTS" -var-file="$RUNTIME_INPUTS" \
-  -var-file="$CURRENT_INPUTS" -var-file="$SECRET_RUNTIME_INPUTS" \
-  -out="$PRIVATE_ARTIFACTS/production.tfplan" > "$PRIVATE_ARTIFACTS/production-plan.log" 2>&1
-terraform -chdir="$MIGRATION_COPY" show -json "$PRIVATE_ARTIFACTS/production.tfplan" > "$PRIVATE_ARTIFACTS/production-plan.json"
-python3 scripts/check_readonly_plan.py "$PRIVATE_ARTIFACTS/production-plan.json" --manifest "$PRIVATE_ARTIFACTS/manifest.json"
-terraform -chdir=terraform/cloudwatch-loki plan -lock=false -input=false \
-  -out="$PRIVATE_ARTIFACTS/loki.tfplan" > "$PRIVATE_ARTIFACTS/loki-plan.log" 2>&1
-terraform -chdir=terraform/cloudwatch-loki show -json "$PRIVATE_ARTIFACTS/loki.tfplan" > "$PRIVATE_ARTIFACTS/loki-plan.json"
-python3 scripts/check_readonly_plan.py "$PRIVATE_ARTIFACTS/loki-plan.json"
-```
-
-private plan은 민감한 산출물이므로 review에는 아래 주소·ID와 집계만 사용한다.
-실행 전 backend lineage/serial과 live ownership이 달라지면 제안을 재작성하고 전체
-검증을 반복한다. Route53 목록 권한은 확대하지 않으며 검증을 위해 AWS를 수정하지 않는다.
-
-## 남은 별도 승인 단계와 범위 밖 작업
-
-1. 이 Draft PR의 코드·아래 정확한 94 move/7 import/2 forget 제안을 검토한다.
-2. **별도 state-only 실행 승인** 후에만 최신 state/live ownership과 전체 plan을 다시
-   확인하고, 이 정확한 동작만 수행하는 별도 state reconciliation 절차를 진행한다.
-   현재 저장한 plan을 시간 경과 후 바로 실행하는 승인이 아니다. AWS write가 한 건이라도
-   있거나 주소/ID가 다르면 중단한다. 이 코드 단계에는 실행 승인이 없다.
-3. 승인된 정합성 반영이 끝나면 private ONE-OFF 선언을 active 사본에서 제거하고,
-   최종 tracked steady source만으로 전체 refresh plan을 실행해 import/forget/move 없이
-   0 create/update/delete/replace를 확인한다. 별도 Loki도 다시 검증한다.
-4. 위 결과가 확인될 때까지 #5 OPEN / PR DRAFT 유지. merge나 issue 자동 종료 문구를 쓰지 않는다.
-
-후속: dev EC2·연관 리소스 inventory와 기존 state 중복 소유권 조사, dev backend/root
-확정 및 별도 adoption 승인, 공유 리소스의 cross-backend 이동 필요성 검토는 미완료다.
-이 PR은 dev EC2를 새로 관리하거나 생성하지 않는다. retired staging 복원, backend 간
-migration/state 분할, #12의 EIP 정리도 수행하지 않는다.
+재검증 명령과 제외 dev 자원별 근거는 [환경 분리 검증](terraform-environment-separation.md)에 있다.
+raw state/plan/tfvars/Secret/ZIP/.terraform은 저장소 밖 private 파일로만 보관한다.
+tracked import/moved/removed 블록과 영구 migration 디렉터리는 없다.
 
 ## 정확한 미실행 import / forget 제안
 
 | 동작 | 주소 | 정확한 기존 ID |
 | --- | --- | --- |
-| import 제안 | `module.cdn.aws_cloudfront_distribution.fe` | `E3LYSMQO2T1UT` |
-| import 제안 | `module.storage.aws_ecr_repository.be` | `star23/be` |
-| import 제안 | `module.storage.aws_ecr_repository.ai` | `star23/ai` |
-| import 제안 | `module.storage.aws_s3_bucket.fe` | `star23-s3-deploy-bucket-975779326240-ap-northeast-2-an` |
-| import 제안 | `module.storage.aws_s3_bucket.image` | `star23-images` |
-| import 제안 | `module.alb.aws_lb_listener_rule.chat_routes` | `arn:aws:elasticloadbalancing:ap-northeast-2:975779326240:listener-rule/app/star23-alb/1ca5051586e3c967/7486e2341aeaa359/a1bcba60b2a96fb8` |
-| import 제안 | `aws_vpc_security_group_ingress_rule.ai_from_ws` | `sgr-0030fb498843e37b8` |
-| forget 제안 (AWS 삭제 아님) | `module.alb.aws_lb_listener_rule.ws` | `arn:aws:elasticloadbalancing:ap-northeast-2:975779326240:listener-rule/app/star23-alb/1ca5051586e3c967/7486e2341aeaa359/f8cd5cf50f103400` |
-| forget 제안 (AWS 삭제 아님) | `module.alb.aws_lb_listener_rule.ws_ai_practice` | `arn:aws:elasticloadbalancing:ap-northeast-2:975779326240:listener-rule/app/star23-alb/1ca5051586e3c967/7486e2341aeaa359/0abaf0678dd25457` |
+| imports 제안 | `module.cdn.aws_cloudfront_distribution.fe` | `E3LYSMQO2T1UT` |
+| imports 제안 | `module.storage.aws_ecr_repository.be` | `star23/be` |
+| imports 제안 | `module.storage.aws_ecr_repository.ai` | `star23/ai` |
+| imports 제안 | `module.storage.aws_s3_bucket.fe` | `star23-s3-deploy-bucket-975779326240-ap-northeast-2-an` |
+| imports 제안 | `module.storage.aws_s3_bucket.image` | `star23-images` |
+| imports 제안 | `module.alb.aws_lb_listener_rule.chat_routes` | `arn:aws:elasticloadbalancing:ap-northeast-2:975779326240:listener-rule/app/star23-alb/1ca5051586e3c967/7486e2341aeaa359/a1bcba60b2a96fb8` |
+| imports 제안 | `aws_vpc_security_group_ingress_rule.ai_from_ws` | `sgr-0030fb498843e37b8` |
+| forget 제안 | `module.alb.aws_lb_listener_rule.ws` | `arn:aws:elasticloadbalancing:ap-northeast-2:975779326240:listener-rule/app/star23-alb/1ca5051586e3c967/7486e2341aeaa359/f8cd5cf50f103400` |
+| forget 제안 | `module.alb.aws_lb_listener_rule.ws_ai_practice` | `arn:aws:elasticloadbalancing:ap-northeast-2:975779326240:listener-rule/app/star23-alb/1ca5051586e3c967/7486e2341aeaa359/0abaf0678dd25457` |
 
-두 forget은 이미 존재하지 않는 과거 ALB 규칙의 **state 기록만 해제**하는 제안이다.
-새 live priority-1 규칙의 ID로 과거 주소를 덮어쓰지 않는다. 역사적 root 주소는 현재
-다섯 backend의 실제 소유권에 맞는 active 94개 move로 축약했으며, 미사용 이력은
-private archive에만 남긴다. 아래 각 행은 한 기존 객체를 정확히 한 최종 주소로 보존한다.
+두 forget은 사라진 ALB 규칙의 state 기록만 해제하는 제안이며 AWS 삭제가 아니다.
 
-## 정확한 주소 이동 / 기존 ID 유지 표 (94건)
+## 정확한 주소 이동 / 기존 ID 유지 표 (121건)
 
 | 기존 주소 | 최종 주소 | 유지하는 기존 ID |
 | --- | --- | --- |
@@ -262,9 +169,34 @@ private archive에만 남긴다. 아래 각 행은 한 기존 객체를 정확�
 | `module.ecs.aws_ssm_parameter.be_config["SPRING_PROFILES_ACTIVE"]` | `module.be.aws_ssm_parameter.be_config["SPRING_PROFILES_ACTIVE"]` | `/star23/prod/be/SPRING_PROFILES_ACTIVE` |
 | `module.ecs.aws_ssm_parameter.be_config["TOKEN_URI"]` | `module.be.aws_ssm_parameter.be_config["TOKEN_URI"]` | `/star23/prod/be/TOKEN_URI` |
 | `module.ecs.aws_ssm_parameter.be_config["USER_INFO_URI"]` | `module.be.aws_ssm_parameter.be_config["USER_INFO_URI"]` | `/star23/prod/be/USER_INFO_URI` |
+| `module.network.aws_internet_gateway.main` | `module.network.module.vpc.aws_internet_gateway.main` | `igw-02eaf0022aad0070a` |
+| `module.network.aws_route.app_nat["2a"]` | `module.network.module.routetable.aws_route.app_nat["2a"]` | `r-rtb-0483eafe0a88f9d6f1080289494` |
+| `module.network.aws_route.app_nat["2c"]` | `module.network.module.routetable.aws_route.app_nat["2c"]` | `r-rtb-0eff246d8f32b92171080289494` |
+| `module.network.aws_route.public_internet` | `module.network.module.routetable.aws_route.public_internet` | `r-rtb-0da387175796d3fe01080289494` |
+| `module.network.aws_route_table.application["2a"]` | `module.network.module.routetable.aws_route_table.application["2a"]` | `rtb-0483eafe0a88f9d6f` |
+| `module.network.aws_route_table.application["2c"]` | `module.network.module.routetable.aws_route_table.application["2c"]` | `rtb-0eff246d8f32b9217` |
+| `module.network.aws_route_table.data["2a"]` | `module.network.module.routetable.aws_route_table.data["2a"]` | `rtb-061fe91000cf4bac3` |
+| `module.network.aws_route_table.data["2c"]` | `module.network.module.routetable.aws_route_table.data["2c"]` | `rtb-0ea2022951d7d40dc` |
+| `module.network.aws_route_table.public` | `module.network.module.routetable.aws_route_table.public` | `rtb-0da387175796d3fe0` |
+| `module.network.aws_route_table_association.application["2a"]` | `module.network.module.routetable.aws_route_table_association.application["2a"]` | `rtbassoc-0411dd8c467194b72` |
+| `module.network.aws_route_table_association.application["2c"]` | `module.network.module.routetable.aws_route_table_association.application["2c"]` | `rtbassoc-0474a20b0ebf385df` |
+| `module.network.aws_route_table_association.data["2a"]` | `module.network.module.routetable.aws_route_table_association.data["2a"]` | `rtbassoc-0b6fa7161c2145f52` |
+| `module.network.aws_route_table_association.data["2c"]` | `module.network.module.routetable.aws_route_table_association.data["2c"]` | `rtbassoc-031ed42a96ab91c32` |
+| `module.network.aws_route_table_association.public["2a"]` | `module.network.module.routetable.aws_route_table_association.public["2a"]` | `rtbassoc-063fe6129ccc0dd87` |
+| `module.network.aws_route_table_association.public["2c"]` | `module.network.module.routetable.aws_route_table_association.public["2c"]` | `rtbassoc-0fe29c1479e9212e1` |
+| `module.network.aws_security_group.alb` | `module.alb.aws_security_group.alb` | `sg-024bc8ce4703437e4` |
 | `module.network.aws_security_group.app` | `module.be.aws_security_group.app` | `sg-0503c9272aec02938` |
 | `module.network.aws_security_group.ecs_service["ai"]` | `module.ai.aws_security_group.service` | `sg-0b0c8b8bf5a2ad320` |
 | `module.network.aws_security_group.ecs_service["ws"]` | `module.ws.aws_security_group.service` | `sg-0485ff24c6d6eec2e` |
+| `module.network.aws_security_group.mysql` | `module.database.aws_security_group.mysql` | `sg-06ac6e738fe2627b8` |
+| `module.network.aws_security_group.postgres` | `module.database.aws_security_group.postgres` | `sg-079aa290fd348d89d` |
+| `module.network.aws_subnet.application["2a"]` | `module.network.module.subnet.aws_subnet.application["2a"]` | `subnet-0df254967b351e8b4` |
+| `module.network.aws_subnet.application["2c"]` | `module.network.module.subnet.aws_subnet.application["2c"]` | `subnet-026d0c5d6c7d078ab` |
+| `module.network.aws_subnet.data["2a"]` | `module.network.module.subnet.aws_subnet.data["2a"]` | `subnet-0216b16db5b704108` |
+| `module.network.aws_subnet.data["2c"]` | `module.network.module.subnet.aws_subnet.data["2c"]` | `subnet-00d8529fb49a24255` |
+| `module.network.aws_subnet.public["2a"]` | `module.network.module.subnet.aws_subnet.public["2a"]` | `subnet-0ed1f69eb87aa7bb0` |
+| `module.network.aws_subnet.public["2c"]` | `module.network.module.subnet.aws_subnet.public["2c"]` | `subnet-0c6f943221f9a3261` |
+| `module.network.aws_vpc.main` | `module.network.module.vpc.aws_vpc.main` | `vpc-021d4bdf5e5e79b3e` |
 | `module.network.aws_vpc_security_group_egress_rule.alb_to_app` | `aws_vpc_security_group_egress_rule.alb_to_app` | `sgr-02fc698b70927d7c1` |
 | `module.network.aws_vpc_security_group_egress_rule.alb_to_ws` | `aws_vpc_security_group_egress_rule.alb_to_ws` | `sgr-0b5e6d320c19b544a` |
 | `module.network.aws_vpc_security_group_egress_rule.app_outbound_rule` | `module.be.aws_vpc_security_group_egress_rule.app_outbound_rule` | `sgr-05f1f0f7b7865b239` |
@@ -273,6 +205,8 @@ private archive에만 남긴다. 아래 각 행은 한 기존 객체를 정확�
 | `module.network.aws_vpc_security_group_ingress_rule.additional_ecs_database["ai-postgres"]` | `aws_vpc_security_group_ingress_rule.additional_ecs_database["ai-postgres"]` | `sgr-0c2393df6938f93fb` |
 | `module.network.aws_vpc_security_group_ingress_rule.additional_ecs_database["ws-mysql"]` | `aws_vpc_security_group_ingress_rule.additional_ecs_database["ws-mysql"]` | `sgr-0a80d1f7411594df8` |
 | `module.network.aws_vpc_security_group_ingress_rule.ai_from_be` | `aws_vpc_security_group_ingress_rule.ai_from_be` | `sgr-0528c999524434f7c` |
+| `module.network.aws_vpc_security_group_ingress_rule.alb_http` | `module.alb.aws_vpc_security_group_ingress_rule.alb_http` | `sgr-00c25d9943f76232f` |
+| `module.network.aws_vpc_security_group_ingress_rule.alb_https` | `module.alb.aws_vpc_security_group_ingress_rule.alb_https` | `sgr-06e08b147695b3503` |
 | `module.network.aws_vpc_security_group_ingress_rule.app_from_alb` | `aws_vpc_security_group_ingress_rule.app_from_alb` | `sgr-0bb3baa52933f1ec9` |
 | `module.network.aws_vpc_security_group_ingress_rule.mysql_from_app` | `aws_vpc_security_group_ingress_rule.mysql_from_app` | `sgr-0897b025695403eae` |
 | `module.network.aws_vpc_security_group_ingress_rule.postgres_from_app` | `aws_vpc_security_group_ingress_rule.postgres_from_app` | `sgr-0ed715c2b39a0e5c7` |
@@ -281,12 +215,11 @@ private archive에만 남긴다. 아래 각 행은 한 기존 객체를 정확�
 | `module.network.aws_vpc_security_group_ingress_rule.v1_database_from_ecs["ws-mysql"]` | `aws_vpc_security_group_ingress_rule.v1_database_from_ecs["ws-mysql"]` | `sgr-0d67698cac3485b4d` |
 | `module.network.aws_vpc_security_group_ingress_rule.ws_from_alb` | `aws_vpc_security_group_ingress_rule.ws_from_alb` | `sgr-06efbf0a90350fbe1` |
 
-## 동일 주소를 유지하는 prod 소유권 (43건)
+## 동일 주소 유지 객체
 
-아래 객체는 주소와 ID 모두 유지한다. 94개 이동 + 43개 동일 주소의 기존 객체 137개가
-모두 no-op이며, 과거 기록 해제 2개와 기존 자원 import 7개만 별도로 제안한다.
+121개 이동과 아래 16개 동일 주소의 기존 ID, 총 137개를 유지한다.
 
-| 유지 주소 / 소유자 | 유지 ID |
+| 주소 | 기존 ID |
 | --- | --- |
 | `module.alb.aws_alb.main` | `arn:aws:elasticloadbalancing:ap-northeast-2:975779326240:loadbalancer/app/star23-alb/1ca5051586e3c967` |
 | `module.alb.aws_lb_listener.http` | `arn:aws:elasticloadbalancing:ap-northeast-2:975779326240:listener/app/star23-alb/1ca5051586e3c967/6e1f17ada487ab23` |
@@ -298,36 +231,16 @@ private archive에만 남긴다. 아래 각 행은 한 기존 객체를 정확�
 | `module.database.aws_db_subnet_group.mysql` | `star23-v2-prod-data` |
 | `module.database.aws_db_subnet_group.postgres` | `star23-v2-prod-postgres-data` |
 | `module.network.aws_eip.nat["2a"]` | `eipalloc-0e41c9d00af323112` |
-| `module.network.aws_internet_gateway.main` | `igw-02eaf0022aad0070a` |
 | `module.network.aws_nat_gateway.main["2a"]` | `nat-0df854ae52c66ac3c` |
-| `module.network.aws_route.app_nat["2a"]` | `r-rtb-0483eafe0a88f9d6f1080289494` |
-| `module.network.aws_route.app_nat["2c"]` | `r-rtb-0eff246d8f32b92171080289494` |
 | `module.network.aws_route.application_to_v1_database["2a"]` | `r-rtb-0483eafe0a88f9d6f179966490` |
 | `module.network.aws_route.application_to_v1_database["2c"]` | `r-rtb-0eff246d8f32b9217179966490` |
-| `module.network.aws_route.public_internet` | `r-rtb-0da387175796d3fe01080289494` |
 | `module.network.aws_route.v1_database_to_application["rtb-07a5c07f85fda1ee1-2a"]` | `r-rtb-07a5c07f85fda1ee12101771648` |
 | `module.network.aws_route.v1_database_to_application["rtb-07a5c07f85fda1ee1-2c"]` | `r-rtb-07a5c07f85fda1ee13055201829` |
-| `module.network.aws_route_table.application["2a"]` | `rtb-0483eafe0a88f9d6f` |
-| `module.network.aws_route_table.application["2c"]` | `rtb-0eff246d8f32b9217` |
-| `module.network.aws_route_table.data["2a"]` | `rtb-061fe91000cf4bac3` |
-| `module.network.aws_route_table.data["2c"]` | `rtb-0ea2022951d7d40dc` |
-| `module.network.aws_route_table.public` | `rtb-0da387175796d3fe0` |
-| `module.network.aws_route_table_association.application["2a"]` | `rtbassoc-0411dd8c467194b72` |
-| `module.network.aws_route_table_association.application["2c"]` | `rtbassoc-0474a20b0ebf385df` |
-| `module.network.aws_route_table_association.data["2a"]` | `rtbassoc-0b6fa7161c2145f52` |
-| `module.network.aws_route_table_association.data["2c"]` | `rtbassoc-031ed42a96ab91c32` |
-| `module.network.aws_route_table_association.public["2a"]` | `rtbassoc-063fe6129ccc0dd87` |
-| `module.network.aws_route_table_association.public["2c"]` | `rtbassoc-0fe29c1479e9212e1` |
-| `module.network.aws_security_group.alb` | `sg-024bc8ce4703437e4` |
-| `module.network.aws_security_group.mysql` | `sg-06ac6e738fe2627b8` |
-| `module.network.aws_security_group.postgres` | `sg-079aa290fd348d89d` |
-| `module.network.aws_subnet.application["2a"]` | `subnet-0df254967b351e8b4` |
-| `module.network.aws_subnet.application["2c"]` | `subnet-026d0c5d6c7d078ab` |
-| `module.network.aws_subnet.data["2a"]` | `subnet-0216b16db5b704108` |
-| `module.network.aws_subnet.data["2c"]` | `subnet-00d8529fb49a24255` |
-| `module.network.aws_subnet.public["2a"]` | `subnet-0ed1f69eb87aa7bb0` |
-| `module.network.aws_subnet.public["2c"]` | `subnet-0c6f943221f9a3261` |
-| `module.network.aws_vpc.main` | `vpc-021d4bdf5e5e79b3e` |
 | `module.network.aws_vpc_peering_connection.v1_database["v1"]` | `pcx-09f9b6ffb8454c7b9` |
-| `module.network.aws_vpc_security_group_ingress_rule.alb_http` | `sgr-00c25d9943f76232f` |
-| `module.network.aws_vpc_security_group_ingress_rule.alb_https` | `sgr-06e08b147695b3503` |
+
+## 남은 별도 운영 단계
+
+코드와 preview만 준비했다. actual remote state 전환/adoption은 실행하지 않았다.
+향후 별도 승인된 state-only 절차에서도 최신 live 소유권/lineage/serial과 전체 plan을 재확인해야 한다.
+정합성 반영 뒤 임시 선언을 제거한 steady source로 full-refresh no-op을 별도 검증해야 한다.
+현재 #5 OPEN / PR #14 DRAFT 유지, Refs #5다. AWS/DNS/IAM 변경·EIP 정리·merge·issue 종료는 범위 밖이다.
