@@ -12,7 +12,7 @@ data "aws_subnet" "loki" {
 }
 
 module "cloudwatch_loki" {
-  source = "../modules/cloudwatch-loki"
+  source = "./forwarder"
 
   name                   = "star23-prod-cloudwatch-loki"
   vpc_id                 = data.aws_subnet.loki.vpc_id

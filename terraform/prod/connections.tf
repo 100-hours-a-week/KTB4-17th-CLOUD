@@ -7,7 +7,7 @@ locals {
 }
 
 resource "aws_vpc_security_group_egress_rule" "alb_to_app" {
-  security_group_id = module.network.alb_security_group_id
+  security_group_id = module.alb.alb_security_group_id
 
   referenced_security_group_id = module.be.security_group_id
   ip_protocol                  = "tcp"
@@ -22,7 +22,7 @@ resource "aws_vpc_security_group_egress_rule" "alb_to_app" {
 resource "aws_vpc_security_group_ingress_rule" "app_from_alb" {
   security_group_id = module.be.security_group_id
 
-  referenced_security_group_id = module.network.alb_security_group_id
+  referenced_security_group_id = module.alb.alb_security_group_id
   ip_protocol                  = "tcp"
   from_port                    = local.app_port
   to_port                      = local.app_port
@@ -33,7 +33,7 @@ resource "aws_vpc_security_group_ingress_rule" "app_from_alb" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "mysql_from_app" {
-  security_group_id = module.network.mysql_security_group_id
+  security_group_id = module.database.mysql_security_group_id
 
   referenced_security_group_id = module.be.security_group_id
   ip_protocol                  = "tcp"
@@ -46,7 +46,7 @@ resource "aws_vpc_security_group_ingress_rule" "mysql_from_app" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "postgres_from_app" {
-  security_group_id = module.network.postgres_security_group_id
+  security_group_id = module.database.postgres_security_group_id
 
   referenced_security_group_id = module.be.security_group_id
   ip_protocol                  = "tcp"
@@ -60,7 +60,7 @@ resource "aws_vpc_security_group_ingress_rule" "postgres_from_app" {
 
 resource "aws_vpc_security_group_ingress_rule" "ws_from_alb" {
   security_group_id            = module.ws.security_group_id
-  referenced_security_group_id = module.network.alb_security_group_id
+  referenced_security_group_id = module.alb.alb_security_group_id
   ip_protocol                  = "tcp"
   from_port                    = var.ws_port
   to_port                      = var.ws_port
@@ -72,7 +72,7 @@ resource "aws_vpc_security_group_ingress_rule" "ws_from_alb" {
 }
 
 resource "aws_vpc_security_group_egress_rule" "alb_to_ws" {
-  security_group_id            = module.network.alb_security_group_id
+  security_group_id            = module.alb.alb_security_group_id
   referenced_security_group_id = module.ws.security_group_id
   ip_protocol                  = "tcp"
   from_port                    = var.ws_port
@@ -112,11 +112,11 @@ locals {
 
   ecs_database_settings = {
     mysql = {
-      security_group_id = module.network.mysql_security_group_id
+      security_group_id = module.database.mysql_security_group_id
       port              = local.mysql_port
     }
     postgres = {
-      security_group_id = module.network.postgres_security_group_id
+      security_group_id = module.database.postgres_security_group_id
       port              = local.postgres_port
     }
   }

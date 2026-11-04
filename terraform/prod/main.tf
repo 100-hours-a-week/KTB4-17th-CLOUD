@@ -1,5 +1,5 @@
 module "network" {
-  source = "./modules/network"
+  source = "./network"
 
   name_prefix         = local.name_prefix
   vpc_cidr            = local.vpc_cidr
@@ -11,53 +11,51 @@ module "network" {
 }
 
 module "alb" {
-  source = "./modules/alb"
+  source = "./alb"
 
-  name_prefix           = local.name_prefix
-  vpc_id                = module.network.vpc_id
-  public_subnet_ids     = module.network.public_subnet_ids
-  alb_security_group_id = module.network.alb_security_group_id
-  app_port              = local.app_port
-  health_check_path     = local.health_check_path
-  ws_enabled            = var.ws_enabled
-  ws_port               = var.ws_port
-  ws_health_check_path  = var.ws_health_check_path
-  acm_certificate_arn   = var.acm_certificate_arn
+  name_prefix          = local.name_prefix
+  vpc_id               = module.network.vpc_id
+  public_subnet_ids    = module.network.public_subnet_ids
+  app_port             = local.app_port
+  health_check_path    = local.health_check_path
+  ws_enabled           = var.ws_enabled
+  ws_port              = var.ws_port
+  ws_health_check_path = var.ws_health_check_path
+  acm_certificate_arn  = var.acm_certificate_arn
 }
 
 module "database" {
-  source = "./modules/database"
+  source = "./database"
 
-  name_prefix             = local.name_prefix
-  vpc_version             = local.version
-  data_subnet_ids         = module.network.data_subnet_ids
-  mysql_security_group_id = module.network.mysql_security_group_id
-  mysql_port              = local.mysql_port
-  mysql_username          = var.mysql_username
+  name_prefix     = local.name_prefix
+  vpc_version     = local.version
+  vpc_id          = module.network.vpc_id
+  data_subnet_ids = module.network.data_subnet_ids
+  mysql_port      = local.mysql_port
+  mysql_username  = var.mysql_username
 
-  postgres_security_group_id = module.network.postgres_security_group_id
-  postgres_port              = local.postgres_port
-  postgres_username          = var.postgres_username
+  postgres_port     = local.postgres_port
+  postgres_username = var.postgres_username
 }
 
 module "storage" {
-  source = "./modules/storage"
+  source = "./storage"
 }
 
 module "cdn" {
-  source = "./modules/cdn"
+  source = "./cdn"
 
   name_prefix = local.name_prefix
 }
 
 module "cluster" {
-  source      = "./modules/ecs/cluster"
+  source      = "./ecs/cluster"
   name_prefix = local.name_prefix
   environment = var.environment
 }
 
 module "ai" {
-  source                              = "./modules/ecs/services/ai"
+  source                              = "./ecs/service/ai"
   name_prefix                         = local.name_prefix
   environment                         = var.environment
   cluster_id                          = module.cluster.id
@@ -89,7 +87,7 @@ module "ai" {
 }
 
 module "be" {
-  source                 = "./modules/ecs/services/be"
+  source                 = "./ecs/service/be"
   name_prefix            = local.name_prefix
   environment            = var.environment
   cluster_id             = module.cluster.id
@@ -125,7 +123,7 @@ module "be" {
 }
 
 module "ws" {
-  source                    = "./modules/ecs/services/ws"
+  source                    = "./ecs/service/ws"
   name_prefix               = local.name_prefix
   environment               = var.environment
   cluster_id                = module.cluster.id
