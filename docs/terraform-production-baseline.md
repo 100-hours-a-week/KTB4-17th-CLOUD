@@ -1,5 +1,9 @@
 # 운영 Terraform 소스 기준선 — #11
 
+> 이 문서는 #11 당시의 역사적 증거다. #5의 현재 모듈 구조와 완료된 state 전환,
+> 정상 소스의 무변경 검증은 [서비스 모듈 문서](terraform-service-modules.md)를 따른다.
+> 아래 tracked migration 파일 설명과 예전 무제한 import/forget 검사 방법은 현재 실행 지침이 아니다.
+
 2026-11-03, `main`의 `392dadb`를 기준으로 실제 AWS 운영 구성과 소스를
 대조했다. V1 EC2는 dev, V2 ECS는 prod다. 환경 디렉터리 재구성(#5), staging
 복원, EIP 정리(#12)는 포함하지 않는다. 원본 미커밋 저장소는 읽기만 했고,
@@ -9,8 +13,8 @@
 
 | 루트 / 기존 S3 key | 관리 범위 | 확인한 serial |
 | --- | --- | --- |
-| `terraform` / `prod/terraform.tfstate` | 운영 network, ALB, 두 RDS, ECS, 기존 공유 storage/CDN의 import 제안 | 29 |
-| `terraform/cloudwatch-loki` / `prod/cloudwatch-loki/terraform.tfstate` | 기존 Lambda, IAM, 전용 SG·Loki ingress, 로그 구독 | 4 |
+| `terraform/prod` / `prod/terraform.tfstate` | 운영 network, ALB, 두 RDS, ECS, 기존 공유 storage/CDN의 import 제안 | 29 |
+| `terraform/prod/cloudwatch-loki` / `prod/cloudwatch-loki/terraform.tfstate` | 기존 Lambda, IAM, 전용 SG·Loki ingress, 로그 구독 | 4 |
 
 두 백엔드의 버킷은 기존 `star23-tfstate-975779326240`이다. Loki는 상위 루트에
 추가하지 않았다. 원본 ECS 로그 그룹은 ECS 모듈 소유이며, Loki 루트는 data로
@@ -106,22 +110,22 @@ PR, CI 공개 로그에 출력하지 않는다. 백엔드는 변경하지 않는
 
 ```bash
 umask 077
-terraform -chdir=terraform init -input=false -lockfile=readonly
-terraform -chdir=terraform/cloudwatch-loki init -input=false -lockfile=readonly
-terraform/cloudwatch-loki/fetch-package.sh
+terraform -chdir=terraform/prod init -input=false -lockfile=readonly
+terraform -chdir=terraform/prod/cloudwatch-loki init -input=false -lockfile=readonly
+terraform/prod/cloudwatch-loki/fetch-package.sh
 terraform fmt -check -recursive terraform
-terraform -chdir=terraform validate
-terraform -chdir=terraform/cloudwatch-loki validate
+terraform -chdir=terraform/prod validate
+terraform -chdir=terraform/prod/cloudwatch-loki validate
 python3 -m unittest discover -s tests -v
 
-terraform -chdir=terraform plan -lock=false -input=false \
+terraform -chdir=terraform/prod plan -lock=false -input=false \
   -var-file="$BASELINE_PROD_INPUTS" -var-file="$BASELINE_RUNTIME_INPUTS" \
   -var-file="$BASELINE_CURRENT_INPUTS" \
   -out="$BASELINE_ARTIFACTS/production.tfplan" > "$BASELINE_ARTIFACTS/production.log" 2>&1
-terraform -chdir=terraform/cloudwatch-loki plan -lock=false -input=false \
+terraform -chdir=terraform/prod/cloudwatch-loki plan -lock=false -input=false \
   -out="$BASELINE_ARTIFACTS/loki.tfplan" > "$BASELINE_ARTIFACTS/loki.log" 2>&1
-terraform -chdir=terraform show -json "$BASELINE_ARTIFACTS/production.tfplan" > "$BASELINE_ARTIFACTS/production.json"
-terraform -chdir=terraform/cloudwatch-loki show -json "$BASELINE_ARTIFACTS/loki.tfplan" > "$BASELINE_ARTIFACTS/loki.json"
+terraform -chdir=terraform/prod show -json "$BASELINE_ARTIFACTS/production.tfplan" > "$BASELINE_ARTIFACTS/production.json"
+terraform -chdir=terraform/prod/cloudwatch-loki show -json "$BASELINE_ARTIFACTS/loki.tfplan" > "$BASELINE_ARTIFACTS/loki.json"
 python3 scripts/check_readonly_plan.py "$BASELINE_ARTIFACTS/production.json"
 python3 scripts/check_readonly_plan.py "$BASELINE_ARTIFACTS/loki.json"
 ```
