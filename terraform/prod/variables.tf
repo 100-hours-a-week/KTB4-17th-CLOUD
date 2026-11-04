@@ -33,7 +33,7 @@ variable "be_secret_values" {
 
   validation {
     condition     = length(var.be_secret_values.DB_PASSWORD) > 0 || contains(keys(var.be_runtime.secrets), "DB_PASSWORD")
-    error_message = "Provide the production DB_PASSWORD at runtime, or reference an existing Secrets Manager ARN in be_secrets."
+    error_message = "Provide the production DB_PASSWORD at runtime, or reference an existing Secrets Manager ARN in be_runtime.secrets."
   }
 }
 
