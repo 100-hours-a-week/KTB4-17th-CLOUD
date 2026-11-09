@@ -14,7 +14,7 @@ terraform {
 resource "aws_instance" "app" {
   ami                         = "ami-01121f059d87f7a72"
   instance_type               = "t3.small"
-  subnet_id                   = var.subnet_ids["subnet-046d61dd64b873264"]
+  subnet_id                   = var.app_subnet_id
   private_ip                  = "10.0.0.6"
   key_name                    = "star23-key"
   vpc_security_group_ids      = [var.security_group_ids.ssh, var.security_group_ids.app]
@@ -46,7 +46,7 @@ resource "aws_instance" "app" {
 resource "aws_instance" "messaging" {
   ami                         = "ami-0482375b68fabfbaf"
   instance_type               = "t3.small"
-  subnet_id                   = var.subnet_ids["subnet-0d6ff6e6460961e3c"]
+  subnet_id                   = var.messaging_subnet_id
   private_ip                  = "10.0.1.103"
   key_name                    = "star23-key"
   vpc_security_group_ids      = [var.security_group_ids.app]

@@ -10,9 +10,13 @@ module "network" { source = "./network" }
  * EC2
  */
 module "ec2" {
-  source             = "./ec2"
-  subnet_ids         = module.network.subnet_ids
-  security_group_ids = local.existing_security_group_ids
+  source              = "./ec2"
+  app_subnet_id       = module.network.subnet_ids["subnet-046d61dd64b873264"]
+  messaging_subnet_id = module.network.subnet_ids["subnet-0d6ff6e6460961e3c"]
+  security_group_ids = {
+    ssh = local.existing_security_group_ids.ssh
+    app = local.existing_security_group_ids.app
+  }
 }
 
 /**
@@ -20,6 +24,9 @@ module "ec2" {
  */
 module "database" {
   source             = "./database"
-  subnet_ids         = module.network.subnet_ids
-  security_group_ids = local.existing_security_group_ids
+  database_subnet_id = module.network.subnet_ids["subnet-046d61dd64b873264"]
+  security_group_ids = {
+    ssh      = local.existing_security_group_ids.ssh
+    database = local.existing_security_group_ids.database
+  }
 }

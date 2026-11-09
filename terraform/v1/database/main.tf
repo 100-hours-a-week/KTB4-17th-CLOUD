@@ -12,10 +12,10 @@ terraform {
 resource "aws_instance" "data" {
   ami                         = "ami-0bc151a94289adb52"
   instance_type               = "t3.micro"
-  subnet_id                   = var.subnet_ids["subnet-046d61dd64b873264"]
+  subnet_id                   = var.database_subnet_id
   private_ip                  = "10.0.0.9"
   key_name                    = "star23-key"
-  vpc_security_group_ids      = [var.security_group_ids.data, var.security_group_ids.ssh]
+  vpc_security_group_ids      = [var.security_group_ids.database, var.security_group_ids.ssh]
   iam_instance_profile        = null
   ebs_optimized               = true
   associate_public_ip_address = true
