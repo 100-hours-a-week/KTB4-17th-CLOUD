@@ -1,0 +1,95 @@
+{{- $repository := required "image.repository must be set" .Values.image.repository -}}
+{{- if and (not .Values.image.tag) (not .Values.image.digest) }}{{ fail "image.tag or image.digest must be set" }}{{ end -}}
+{{- $image := printf "%s:%s" $repository .Values.image.tag -}}
+{{- if .Values.image.digest }}{{ $image = printf "%s@%s" $repository .Values.image.digest }}{{ end -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "star23.name" . }}
+  labels:
+    {{- include "star23.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "star23.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      {{- if .Values.configMap.enabled }}
+      annotations:
+        checksum/config: {{ toYaml .Values.configMap.data | sha256sum | quote }}
+      {{- end }}
+      labels:
+        {{- include "star23.labels" . | nindent 8 }}
+        {{- if .Values.image.tag }}
+        app.kubernetes.io/version: {{ .Values.image.tag | trunc 63 | quote }}
+        {{- end }}
+    spec:
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "star23.name" . }}
+      {{- else if .Values.serviceAccountName }}
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "star23.name" . }}
+          image: {{ $image | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.containerPort }}
+              protocol: TCP
+          {{- with .Values.env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if or .Values.configMap.enabled .Values.externalSecret.enabled .Values.envFrom }}
+          envFrom:
+            {{- if .Values.configMap.enabled }}
+            - configMapRef:
+                name: {{ include "star23.name" . }}-config
+            {{- end }}
+            {{- if .Values.externalSecret.enabled }}
+            - secretRef:
+                name: {{ include "star23.name" . }}-secret
+            {{- end }}
+            {{- with .Values.envFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.probes.readiness.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readiness.path | quote }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+          {{- end }}
+          {{- if .Values.probes.liveness.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.liveness.path | quote }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+          {{- end }}

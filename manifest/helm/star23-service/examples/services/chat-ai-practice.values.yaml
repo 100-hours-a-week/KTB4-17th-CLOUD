@@ -1,0 +1,14 @@
+# Layer on examples/ai.values.yaml; this names the role-specific ClusterIP Service.
+nameOverride: chat-ai-practice
+service:
+  enabled: true
+  port: 8000
+ingress:
+  enabled: false
+resources:
+  requests:
+    cpu: "500m"
+    memory: 1Gi
+  limits:
+    cpu: "1"
+    memory: 2Gi

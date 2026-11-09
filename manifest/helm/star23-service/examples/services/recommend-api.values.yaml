@@ -1,0 +1,16 @@
+# Layer on examples/backend.values.yaml; this names the role-specific ClusterIP Service.
+nameOverride: recommend-api
+service:
+  enabled: true
+  port: 8080
+ingress:
+  enabled: true
+  paths:
+    - path: "/api/v1/likes"
+      pathType: Prefix
+    - path: "/api/v1/recommendation-batches"
+      pathType: Prefix
+    - path: "/api/v1/users/me/recommendation-passes"
+      pathType: Prefix
+    - path: "/api/v1/users/me/preferences"
+      pathType: Prefix

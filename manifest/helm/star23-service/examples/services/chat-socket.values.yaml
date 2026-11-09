@@ -1,0 +1,25 @@
+# Layer on examples/websocket.values.yaml; this names the role-specific ClusterIP Service.
+nameOverride: chat-socket
+service:
+  enabled: true
+  port: 8080
+ingress:
+  enabled: false
+  paths:
+    - path: /ws/chat
+      pathType: Exact
+    - path: "/api/v1/chat-rooms/*/messages"
+      pathType: ImplementationSpecific
+    - path: "/api/v1/chat-rooms/*/read"
+      pathType: ImplementationSpecific
+    - path: "/api/v1/chat-rooms/*/leave"
+      pathType: ImplementationSpecific
+    - path: "/api/v1/chat-rooms/*/delegations"
+      pathType: ImplementationSpecific
+    - path: "/api/v1/chat-rooms/*/delegations/*"
+      pathType: ImplementationSpecific
+    - path: "/api/v1/chat-rooms/*/images/*/access-url"
+      pathType: ImplementationSpecific
+configMap:
+  data:
+    AI_CHAT_DELEGATION_BASE_URL: http://chat-ai-cleanup.chat.svc.cluster.local:8000

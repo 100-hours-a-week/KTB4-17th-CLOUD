@@ -1,0 +1,16 @@
+# Layer on examples/ai.values.yaml; this names the role-specific ClusterIP Service.
+nameOverride: onboarding-face-certify-ai
+service:
+  enabled: true
+  port: 8000
+ingress:
+  enabled: false
+nodeSelector:
+  workload-class: cpu
+resources:
+  requests:
+    cpu: "2"
+    memory: 4Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
