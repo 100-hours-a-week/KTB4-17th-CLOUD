@@ -65,7 +65,7 @@ resource "aws_ecs_service" "ws" {
     environment = var.environment
   }
 
-  depends_on = [aws_vpc_security_group_egress_rule.outbound, var.traffic_rule_ids]
+  depends_on = [aws_vpc_security_group_egress_rule.outbound, aws_vpc_security_group_ingress_rule.ws_from_alb, var.traffic_rule_ids]
 
   lifecycle {
     ignore_changes  = [task_definition, desired_count]

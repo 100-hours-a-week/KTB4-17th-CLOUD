@@ -1,3 +1,8 @@
+/**
+ * Chat routing rule
+ *
+ * 채팅·WebSocket 경로를 WS 대상 그룹으로 전달한다.
+ */
 # Existing priority-1 rule; the obsolete ws/ws_ai_practice IDs are not reused.
 resource "aws_lb_listener_rule" "chat_routes" {
   listener_arn = aws_lb_listener.https.arn
@@ -25,6 +30,11 @@ resource "aws_lb_listener_rule" "chat_routes" {
   }
 }
 
+/**
+ * HTTPS listener
+ *
+ * TLS를 종료하고 기본 요청을 API 대상 그룹으로 전달한다.
+ */
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_alb.main.id
   port              = 443
@@ -42,6 +52,11 @@ resource "aws_lb_listener" "https" {
   }
 }
 
+/**
+ * HTTP listener
+ *
+ * HTTP 요청을 HTTPS로 리다이렉트한다.
+ */
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_alb.main.arn
   port              = 80

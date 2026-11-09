@@ -19,8 +19,8 @@ output "ws_target_group_arn" {
 
 output "alb_security_group_id" {
   value = aws_security_group.alb.id
-  depends_on = [
-    aws_vpc_security_group_ingress_rule.alb_http,
-    aws_vpc_security_group_ingress_rule.alb_https,
-  ]
+}
+
+output "egress_rule_ids" {
+  value = [aws_vpc_security_group_egress_rule.alb_to_app.id, aws_vpc_security_group_egress_rule.alb_to_ws.id]
 }

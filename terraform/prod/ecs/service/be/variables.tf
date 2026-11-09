@@ -59,7 +59,7 @@ variable "ai_service_name" {
 }
 
 variable "traffic_rule_ids" {
-  description = "Root-owned traffic rule completion tokens, consumed only by the ECS service."
+  description = "Peer-owned traffic rule completion tokens, consumed only by the ECS service."
   type        = list(string)
   default     = []
 }
@@ -87,4 +87,8 @@ variable "be_parameter_arns" {
     condition     = alltrue([for arn in values(var.be_parameter_arns) : can(regex("^arn:aws:ssm:[^:]+:[0-9]{12}:parameter/.+$", arn))])
     error_message = "Only full SSM parameter ARNs are accepted."
   }
+}
+
+variable "alb_security_group_id" {
+  type = string
 }

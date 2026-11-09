@@ -1,7 +1,6 @@
 output "service_name" { value = try(aws_ecs_service.ws[0].name, null) }
 output "security_group_id" {
-  value      = aws_security_group.service.id
-  depends_on = [aws_vpc_security_group_egress_rule.outbound]
+  value = aws_security_group.service.id
 }
 
 output "port" {
@@ -20,4 +19,8 @@ output "deployment_infrastructure" {
     task_role_arn      = try(aws_iam_role.service_task["ws"].arn, null)
     log_group_name     = try(aws_cloudwatch_log_group.service[0].name, null)
   }
+}
+
+output "ingress_rule_ids" {
+  value = [aws_vpc_security_group_ingress_rule.ws_from_alb.id]
 }

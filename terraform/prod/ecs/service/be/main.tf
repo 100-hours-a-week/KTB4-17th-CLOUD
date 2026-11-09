@@ -67,7 +67,7 @@ resource "aws_ecs_service" "be" {
   }
 
   # CI/CD owns task revisions and scaling, including the first application start.
-  depends_on = [var.ai_service_name, aws_vpc_security_group_egress_rule.app_outbound_rule, var.traffic_rule_ids]
+  depends_on = [var.ai_service_name, aws_vpc_security_group_egress_rule.app_outbound_rule, aws_vpc_security_group_ingress_rule.app_from_alb, var.traffic_rule_ids]
 
   lifecycle {
     ignore_changes  = [task_definition, desired_count]

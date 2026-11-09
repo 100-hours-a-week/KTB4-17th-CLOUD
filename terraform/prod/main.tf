@@ -17,7 +17,10 @@ module "network" {
  * Application load balancer
  */
 module "alb" {
-  source = "./alb"
+  be_security_group_id = module.be.security_group_id
+  ws_security_group_id = module.ws.security_group_id
+  environment          = local.environment
+  source               = "./alb"
 
   name_prefix          = local.name_prefix
   vpc_id               = module.network.vpc_id
@@ -33,7 +36,13 @@ module "alb" {
  * Databases
  */
 module "database" {
-  source = "./database"
+  be_security_group_id              = module.be.security_group_id
+  ws_security_group_id              = module.ws.security_group_id
+  ai_security_group_id              = module.ai.security_group_id
+  environment                       = local.environment
+  v1_database_network               = var.v1_database_network
+  v1_database_peering_connection_id = module.network.v1_database_peering_connection_id
+  source                            = "./database"
 
   name_prefix     = local.name_prefix
   vpc_version     = local.version
@@ -72,6 +81,8 @@ module "cluster" {
  * AI service
  */
 module "ai" {
+  be_security_group_id                = module.be.security_group_id
+  ws_security_group_id                = module.ws.security_group_id
   services_enabled                    = var.services_enabled
   task_definition_arn                 = var.task_definition_arns.ai
   source                              = "./ecs/service/ai"
@@ -84,15 +95,7 @@ module "ai" {
   ai_secrets                          = var.ai_access.secrets
   ai_secret_kms_key_arns              = var.ai_access.kms_key_arns
   ai_additional_execution_secret_arns = var.ai_access.additional_execution_secret_arns
-  # Only the ECS service consumes these tokens; SG/IAM/log creation stays independent.
-  traffic_rule_ids = concat(
-    [
-      aws_vpc_security_group_ingress_rule.ai_from_be.id,
-      aws_vpc_security_group_ingress_rule.ai_from_ws.id,
-    ],
-    [for key, rule in aws_vpc_security_group_ingress_rule.additional_ecs_database : rule.id if local.additional_ecs_database_rules[key].service == "ai"],
-    [for key, rule in aws_vpc_security_group_ingress_rule.v1_database_from_ecs : rule.id if local.v1_database_ingress_rules[key].service == "ai"],
-  )
+  traffic_rule_ids                    = module.database.ai_rule_ids
 
 }
 
@@ -100,6 +103,7 @@ module "ai" {
  * BE service
  */
 module "be" {
+  alb_security_group_id  = module.alb.alb_security_group_id
   services_enabled       = var.services_enabled
   task_definition_arn    = var.task_definition_arns.be
   source                 = "./ecs/service/be"
@@ -115,17 +119,7 @@ module "be" {
   be_parameter_arns      = var.be_access.parameter_arns
   be_secret_kms_key_arns = var.be_access.kms_key_arns
   ai_service_name        = module.ai.service_name
-  # Only the ECS service consumes these tokens; SG/IAM/log creation stays independent.
-  traffic_rule_ids = concat(
-    [
-      aws_vpc_security_group_egress_rule.alb_to_app.id,
-      aws_vpc_security_group_ingress_rule.app_from_alb.id,
-      aws_vpc_security_group_ingress_rule.mysql_from_app.id,
-      aws_vpc_security_group_ingress_rule.postgres_from_app.id,
-      aws_vpc_security_group_ingress_rule.ai_from_be.id,
-    ],
-    [for key, rule in aws_vpc_security_group_ingress_rule.v1_database_from_ecs : rule.id if local.v1_database_ingress_rules[key].service == "be"],
-  )
+  traffic_rule_ids       = concat(module.alb.egress_rule_ids, module.database.be_rule_ids, module.ai.ingress_rule_ids)
 
 }
 
@@ -133,6 +127,7 @@ module "be" {
  * WS service
  */
 module "ws" {
+  alb_security_group_id     = module.alb.alb_security_group_id
   services_enabled          = var.services_enabled
   task_definition_arn       = var.task_definition_arns.ws
   source                    = "./ecs/service/ws"
@@ -150,15 +145,6 @@ module "ws" {
   ws_use_backend_config     = var.ws_infrastructure.use_backend_config
   ws_secrets                = var.ws_access.secrets
   ws_secret_kms_key_arns    = var.ws_access.kms_key_arns
-  # Only the ECS service consumes these tokens; SG/IAM/log creation stays independent.
-  traffic_rule_ids = concat(
-    [
-      aws_vpc_security_group_ingress_rule.ws_from_alb.id,
-      aws_vpc_security_group_egress_rule.alb_to_ws.id,
-      aws_vpc_security_group_ingress_rule.ai_from_ws.id,
-    ],
-    [for key, rule in aws_vpc_security_group_ingress_rule.additional_ecs_database : rule.id if local.additional_ecs_database_rules[key].service == "ws"],
-    [for key, rule in aws_vpc_security_group_ingress_rule.v1_database_from_ecs : rule.id if local.v1_database_ingress_rules[key].service == "ws"],
-  )
+  traffic_rule_ids          = concat(module.alb.egress_rule_ids, module.database.ws_rule_ids, module.ai.ingress_rule_ids)
 
 }

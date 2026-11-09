@@ -14,3 +14,7 @@ output "deployment_infrastructure" {
     log_group_name     = aws_cloudwatch_log_group.service.name
   }
 }
+
+output "ingress_rule_ids" {
+  value = [aws_vpc_security_group_ingress_rule.app_from_alb.id]
+}

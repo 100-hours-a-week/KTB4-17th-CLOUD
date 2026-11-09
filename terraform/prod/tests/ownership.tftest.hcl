@@ -76,3 +76,39 @@ run "independent_ws_and_ai_parameter_access" {
     }
   }
 }
+
+run "v1_database_network" {
+  command = plan
+  variables {
+    services_enabled  = false
+    ws_infrastructure = { enabled = true, use_backend_config = true }
+    v1_database_network = {
+      vpc_id                     = "vpc-00000000000000001"
+      route_table_ids            = ["rtb-00000000000000001"]
+      mysql_security_group_id    = "sg-00000000000000001"
+      postgres_security_group_id = "sg-00000000000000002"
+    }
+  }
+  assert {
+    condition     = length(module.database.be_rule_ids) == 3 && length(module.database.ws_rule_ids) == 2 && length(module.database.ai_rule_ids) == 2
+    error_message = "Optional V1 access must preserve BE/true MySQL and AI PostgreSQL only."
+  }
+}
+
+run "v1_network_ws_disabled" {
+  command = plan
+  variables {
+    services_enabled  = false
+    ws_infrastructure = { enabled = false, use_backend_config = false }
+    v1_database_network = {
+      vpc_id                     = "vpc-00000000000000001"
+      route_table_ids            = ["rtb-00000000000000001"]
+      mysql_security_group_id    = "sg-00000000000000001"
+      postgres_security_group_id = "sg-00000000000000002"
+    }
+  }
+  assert {
+    condition     = length(module.database.be_rule_ids) == 3 && length(module.database.ws_rule_ids) == 2 && length(module.database.ai_rule_ids) == 2
+    error_message = "Optional V1 access must preserve BE/false MySQL and AI PostgreSQL only."
+  }
+}

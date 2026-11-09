@@ -14,28 +14,6 @@ variable "v1_database_network" {
   default = null
 }
 
-variable "ai_database_access" {
-  description = "AI access to the existing database security groups: mysql and/or postgres"
-  type        = set(string)
-  default     = []
-
-  validation {
-    condition     = alltrue([for database in var.ai_database_access : contains(["mysql", "postgres"], database)])
-    error_message = "ai_database_access may contain only mysql and postgres."
-  }
-}
-
-variable "ws_database_access" {
-  description = "WebSocket access to the existing database security groups: mysql and/or postgres"
-  type        = set(string)
-  default     = []
-
-  validation {
-    condition     = alltrue([for database in var.ws_database_access : contains(["mysql", "postgres"], database)])
-    error_message = "ws_database_access may contain only mysql and postgres."
-  }
-}
-
 variable "services_enabled" {
   description = "False only for first-stage fresh infrastructure bootstrap; never disable for existing services."
   type        = bool

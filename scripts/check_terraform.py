@@ -53,7 +53,7 @@ class OwnershipTests(unittest.TestCase):
                     plan = event['test_plan']
                     schemas = plan.pop('provider_schemas')[AWS]['resource_schemas']
                     if not hasattr(cls, 'schema'):
-                        types = {'aws_ecs_service', 'aws_ecs_task_definition', 'aws_lambda_function', 'aws_lambda_function_event_invoke_config', 'aws_ssm_parameter', 'aws_secretsmanager_secret_version'}
+                        types = {'aws_ecs_service', 'aws_ecs_task_definition', 'aws_lambda_function', 'aws_lambda_function_event_invoke_config', 'aws_ssm_parameter', 'aws_secretsmanager_secret_version', 'aws_vpc_security_group_ingress_rule', 'aws_vpc_security_group_egress_rule'}
                         cls.schema = {key: value for key, value in schemas.items() if key in types}
                     cls.plans[event['@testrun']] = plan
 
@@ -112,6 +112,101 @@ class OwnershipTests(unittest.TestCase):
         for r in logging:
             if r['type'] == 'aws_cloudwatch_log_subscription_filter':
                 self.assertEqual(r['change']['after']['destination_arn'], 'arn:aws:lambda:ap-northeast-2:975779326240:function:star23-prod-cloudwatch-loki')
+
+    def test_security_rule_moves_preserve_all_ids_and_exact_tuples(self):
+        fixture = json.loads((ROOT / 'scripts/fixtures/sg-ownership-before.json').read_text())
+        sg = fixture['security_groups']
+        owners = {'alb': 'alb', 'database': 'database', 'ai': 'ecs/service/ai',
+                  'be': 'ecs/service/be', 'ws': 'ecs/service/ws'}
+        with tempfile.TemporaryDirectory(prefix='ktb-sg-moves-') as tmp:
+            path = Path(tmp)
+            shutil.copy(ROOT / 'terraform/prod/.terraform.lock.hcl', path)
+            header = (ROOT / 'scripts/fixtures/sg-provider.tf.txt').read_text()
+            root = header + '\n' + (ROOT / 'terraform/prod/migrations.tf').read_text()
+            values = dict(name_prefix='star23', environment='prod', app_port=8080,
+                          ws_port=8080, mysql_port=3306, postgres_port=5432,
+                          v1_database_peering_connection_id='pcx-00000000000000001',
+                          v1_database_network={db + '_security_group_id': sg['v1.' + db]
+                                               for db in ('mysql', 'postgres')})
+            values.update({svc + '_security_group_id': sg['module.' + svc + '.' + name]
+                           for svc, name in [('be', 'app'), ('ws', 'service'), ('ai', 'service')]})
+            values['alb_security_group_id'] = sg['module.alb.alb']
+            for owner, source in owners.items():
+                text = (ROOT / 'terraform/prod' / source / 'security.tf').read_text()
+                content = '\n\n'.join(blocks(text, 'resource "aws_vpc_security_group_'))
+                content = re.sub(r'aws_security_group\.(\w+)\.id',
+                                 lambda m: json.dumps(sg['module.' + owner + '.' + m[1]]), content)
+                content = content.replace('local.ai_port', '8000').replace('local.app_port', '8080').replace('local.ws_port', '8080')
+                variables = set(re.findall(r'var\.(\w+)', content))
+                for name in sorted(variables):
+                    content += '\nvariable "' + name + '" { default = ' + json.dumps(values[name]) + ' }\n'
+                mod = path / owner
+                mod.mkdir()
+                (mod / 'main.tf').write_text(content)
+                root += '\nmodule "' + owner + '" { source = "./' + owner + '" }\n'
+            (path / 'main.tf').write_text(root)
+            state = dict(version=4, terraform_version='1.16.4', serial=1,
+                         lineage='00000000-0000-0000-0000-000000000019', outputs={},
+                         resources=fixture['resources'])
+            (path / 'fixture.tfstate').write_text(json.dumps(state))
+            run(['terraform', 'init', '-backend=false', '-input=false', '-lockfile=readonly',
+                 '-plugin-dir=' + str(ROOT / 'terraform/prod/.terraform/providers')], path)
+            run(['terraform', 'plan', '-refresh=false', '-input=false', '-lock=false',
+                 '-state=fixture.tfstate', '-out=moves.tfplan'], path)
+            plan = json.loads(run(['terraform', 'show', '-json', 'moves.tfplan'], path).stdout)
+            changes = plan['resource_changes']
+            before = {i['attributes']['id']: i['attributes']
+                      for r in fixture['resources'] for i in r['instances']}
+            self.assertEqual(len(changes), 18)
+            self.assertEqual(sum('previous_address' in r for r in changes), 13)
+            self.assertEqual({r['change']['after']['id'] for r in changes}, set(before))
+            for r in changes:
+                c = r['change']
+                self.assertEqual(c['actions'], ['no-op'], r['address'])
+                self.assertEqual(c['before'], c['after'], r['address'])
+                self.assertEqual(c['after'], before[c['after']['id']], r['address'])
+            # Already migrated state is idempotent, too; no apply or state CLI needed.
+            migrated = []
+            for r in changes:
+                module, typ, name = r['address'].rsplit('.', 2)
+                indexed = name.endswith('[0]')
+                migrated.append(dict(module=module, mode='managed', type=typ,
+                                     name=name.removesuffix('[0]'), provider='provider["' + AWS + '"]',
+                                     instances=[dict(schema_version=self.schema[typ]['version'],
+                                                     attributes=r['change']['after'], sensitive_attributes=[],
+                                                     **({'index_key': 0} if indexed else {}))]))
+            state['resources'] = migrated
+            (path / 'migrated.tfstate').write_text(json.dumps(state))
+            run(['terraform', 'plan', '-refresh=false', '-input=false', '-lock=false',
+                 '-state=migrated.tfstate', '-detailed-exitcode'], path)
+
+    def test_owner_rules_and_optional_paths_have_no_security_widening(self):
+        self.assertFalse((ROOT / 'terraform/prod/connections.tf').exists())
+        sources = '\n'.join(p.read_text() for p in (ROOT / 'terraform/prod').rglob('*.tf'))
+        for removed in ('ai_database_access', 'ws_database_access', 'additional_ecs_database_rules', 'ecs_database_settings'):
+            self.assertNotIn(removed, sources)
+        # Full root mock plans prove module wiring, the graph, fixed DB matrix,
+        # and WS optionality together (the isolated state fixture covers every rule attribute).
+        for name in ('fresh_infrastructure', 'external_task_service_shells', 'ws_disabled',
+                     'independent_ws_and_ai_parameter_access', 'v1_database_network', 'v1_network_ws_disabled'):
+            changes = self.plans[name]['resource_changes']
+            db_rules = {r['name']: r['change']['after'] for r in changes
+                        if r['type'] == 'aws_vpc_security_group_ingress_rule' and r['module_address'] == 'module.database'}
+            expected = {'mysql_from_app': 3306, 'postgres_from_app': 5432,
+                        'mysql_from_ws': 3306, 'postgres_from_ai': 5432}
+            if name.startswith('v1_'):
+                expected.update(v1_mysql_from_be=3306, v1_mysql_from_ws=3306, v1_postgres_from_ai=5432)
+            self.assertEqual(set(db_rules), set(expected), name)
+            for rule, port in expected.items():
+                self.assertEqual((db_rules[rule]['from_port'], db_rules[rule]['to_port'], db_rules[rule]['ip_protocol']),
+                                 (port, port, 'tcp'))
+            for r in changes:
+                if r['type'] == 'aws_security_group':
+                    self.assertFalse(r['change']['after'].get('ingress'))
+                    self.assertFalse(r['change']['after'].get('egress'))
+            if name.startswith('v1_'):
+                self.assertEqual(sum(r['type'] == 'aws_vpc_peering_connection' for r in changes), 1)
+                self.assertFalse(any(r['type'] == 'aws_security_group' and r['name'].startswith('v1') for r in changes))
 
     def test_existing_state_handoff_and_live_scaling_preservation(self):
         # This is fabricated, public fixture data, never production state.

@@ -41,3 +41,29 @@ variable "postgres_username" {
 }
 
 variable "vpc_id" { type = string }
+
+variable "be_security_group_id" {
+  type = string
+}
+
+variable "ws_security_group_id" {
+  type = string
+}
+
+variable "ai_security_group_id" {
+  type = string
+}
+
+variable "environment" {
+  type = string
+}
+
+variable "v1_database_network" {
+  type    = object({ mysql_security_group_id = string, postgres_security_group_id = string })
+  default = null
+}
+
+variable "v1_database_peering_connection_id" {
+  type    = string
+  default = null
+}

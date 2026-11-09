@@ -74,7 +74,7 @@ variable "ws_secret_kms_key_arns" {
 }
 
 variable "traffic_rule_ids" {
-  description = "Root-owned traffic rule completion tokens, consumed only by the ECS service."
+  description = "Peer-owned traffic rule completion tokens, consumed only by the ECS service."
   type        = list(string)
   default     = []
 }
@@ -92,4 +92,8 @@ variable "task_definition_arn" {
     condition     = var.task_definition_arn == null ? true : can(regex("^arn:aws:ecs:[^:]+:[0-9]{12}:task-definition/[^:]+:[0-9]+$", var.task_definition_arn))
     error_message = "Supply a full ECS task definition ARN including revision."
   }
+}
+
+variable "alb_security_group_id" {
+  type = string
 }

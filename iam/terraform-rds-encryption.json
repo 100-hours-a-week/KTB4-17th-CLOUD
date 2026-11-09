@@ -1,0 +1,42 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DescribeRdsAndSecretDefaultKeys",
+      "Effect": "Allow",
+      "Action": "kms:DescribeKey",
+      "Resource": [
+        "arn:aws:kms:ap-northeast-2:975779326240:key/6b9fe4ef-db83-4c30-8ff6-a42a3db77929",
+        "arn:aws:kms:ap-northeast-2:975779326240:key/75d2ee3f-7c55-4bc1-8d9a-b829cd37fdff"
+      ]
+    },
+    {
+      "Sid": "RdsServiceGrantOnly",
+      "Effect": "Allow",
+      "Action": "kms:CreateGrant",
+      "Resource": "arn:aws:kms:ap-northeast-2:975779326240:key/6b9fe4ef-db83-4c30-8ff6-a42a3db77929",
+      "Condition": {
+        "StringEquals": {
+          "kms:ViaService": "rds.ap-northeast-2.amazonaws.com"
+        },
+        "Bool": {
+          "kms:GrantIsForAWSResource": "true"
+        }
+      }
+    },
+    {
+      "Sid": "CreateRdsManagedSecretOnly",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:CreateSecret",
+        "secretsmanager:TagResource"
+      ],
+      "Resource": "arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:rds!db-*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-northeast-2"
+        }
+      }
+    }
+  ]
+}

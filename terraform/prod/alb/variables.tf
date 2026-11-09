@@ -37,3 +37,15 @@ variable "acm_certificate_arn" {
   description = "Regional ACM certificate for the HTTPS listener."
   type        = string
 }
+
+variable "be_security_group_id" {
+  type = string
+}
+
+variable "ws_security_group_id" {
+  type = string
+}
+
+variable "environment" {
+  type = string
+}
