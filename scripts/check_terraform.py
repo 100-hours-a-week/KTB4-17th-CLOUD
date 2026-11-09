@@ -47,6 +47,7 @@ class OwnershipTests(unittest.TestCase):
             summary = next(e['test_summary'] for e in events if e['type'] == 'test_summary')
             if summary['status'] != 'pass' or not summary['passed']:
                 raise AssertionError(summary)
+            print(f'{root}: init/validate passed; {summary["passed"]} Terraform plan tests passed', flush=True)
             for event in events:
                 if event['type'] == 'test_plan':
                     plan = event['test_plan']
@@ -57,7 +58,7 @@ class OwnershipTests(unittest.TestCase):
                     cls.plans[event['@testrun']] = plan
 
     def test_full_roots_bootstrap_and_external_references(self):
-        forbidden = {'aws_ecs_task_definition', 'aws_ssm_parameter', 'aws_secretsmanager_secret_version', 'aws_lambda_function'}
+        forbidden = {'aws_ecs_task_definition', 'aws_ssm_parameter', 'aws_secretsmanager_secret_version', 'aws_lambda_function', 'aws_ssm_parameters_by_path', 'aws_ssm_parameters'}
         for name, plan in self.plans.items():
             for r in plan['resource_changes']:
                 self.assertNotIn('delete', r['change']['actions'], (name, r['address']))
@@ -74,12 +75,38 @@ class OwnershipTests(unittest.TestCase):
                     'aws_alb', 'aws_lb_target_group', 'aws_db_instance', 'aws_s3_bucket', 'aws_ecr_repository',
                     'aws_iam_role', 'aws_secretsmanager_secret', 'aws_cloudwatch_log_group', 'aws_ecs_cluster'}
         self.assertTrue(required <= {r['type'] for r in shell})
-        for r in shell:
-            if r['address'] == 'module.be.aws_iam_role_policy.ecs_execution_secrets[0]':
-                policy = json.loads(r['change']['after']['policy'])
-                statements = policy['Statement']
-                self.assertEqual(statements[0]['Resource'], ['arn:aws:ssm:ap-northeast-2:975779326240:parameter/star23/prod/be/DB_URL'])
-                self.assertIn('arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:external-abcdef', statements[1]['Resource'])
+        resources = {r['address']: r['change']['after'] for r in shell}
+        def statements(resources, address):
+            return json.loads(resources[address]['policy'])['Statement']
+        be = statements(resources, 'module.be.aws_iam_role_policy.ecs_execution_secrets[0]')
+        self.assertEqual(be[0]['Resource'], ['arn:aws:ssm:ap-northeast-2:975779326240:parameter/star23/prod/be/DB_URL'])
+        self.assertEqual(set(be[1]['Resource']), {
+            'arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:external-abcdef',
+            'arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-abcdef'})
+        ai = statements(resources, 'module.ai.aws_iam_role_policy.service_execution_secrets["ai"]')
+        self.assertEqual(set(ai[0]['Resource']), {
+            'arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:ai-abcdef',
+            'arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:other-abcdef'})
+        ws = statements(resources, 'module.ws.aws_iam_role_policy.service_execution_secrets["ws"]')
+        self.assertEqual({s['Resource'] for s in ws}, set(be[0]['Resource'] + be[1]['Resource']))
+        for svc in ('be', 'ws'):
+            address = ('module.be.aws_iam_role_policy.ecs_execution_secret_kms[0]' if svc == 'be'
+                       else 'module.ws.aws_iam_role_policy.service_execution_secret_kms["ws"]')
+            self.assertEqual(statements(resources, address)[0]['Resource'],
+                             ['arn:aws:kms:ap-northeast-2:975779326240:key/be-fixture'])
+        optional = self.plans['ws_disabled']['resource_changes']
+        self.assertEqual(sum(r['type'] == 'aws_ecs_service' for r in optional), 2)
+        self.assertFalse(any(r['address'].startswith('module.ws.aws_iam_role.') for r in optional))
+        independent = {r['address']: r['change']['after'] for r in
+                       self.plans['independent_ws_and_ai_parameter_access']['resource_changes']}
+        ws = statements(independent, 'module.ws.aws_iam_role_policy.service_execution_secrets["ws"]')
+        self.assertEqual(ws, [{'Effect': 'Allow', 'Action': ['secretsmanager:GetSecretValue'],
+                              'Resource': 'arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:ws-abcdef'}])
+        self.assertNotIn('module.ws.aws_iam_role_policy.ws_s3[0]', independent)
+        ai = statements(independent, 'module.ai.aws_iam_role_policy.service_execution_secrets["ai"]')
+        self.assertEqual(ai[0]['Action'], ['ssm:GetParameters'])
+        self.assertEqual(ai[0]['Resource'], 'arn:aws:ssm:ap-northeast-2:975779326240:parameter/external/ai/setting')
+        self.assertEqual(ai[1]['Resource'], ['arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:other-abcdef'])
         logging = self.plans['external_function_connections']['resource_changes']
         self.assertEqual(sum(r['type'] == 'aws_cloudwatch_log_subscription_filter' for r in logging), 3)
         for r in logging:

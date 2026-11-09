@@ -29,6 +29,7 @@ run "external_task_service_shells" {
     }
     be_access = {
       parameter_arns = { DB_URL = "arn:aws:ssm:ap-northeast-2:975779326240:parameter/star23/prod/be/DB_URL" }
+      kms_key_arns   = ["arn:aws:kms:ap-northeast-2:975779326240:key/be-fixture"]
       secrets        = { EXTERNAL = "arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:external-abcdef:password::" }
     }
     ai_access = {
@@ -44,11 +45,34 @@ run "external_task_service_shells" {
 run "ws_disabled" {
   command = plan
   variables {
-    services_enabled  = false
+    task_definition_arns = {
+      be = "arn:aws:ecs:ap-northeast-2:975779326240:task-definition/star23-be:42"
+      ai = "arn:aws:ecs:ap-northeast-2:975779326240:task-definition/star23-ai:43"
+    }
     ws_infrastructure = { enabled = false, use_backend_config = false }
   }
   assert {
     condition     = !contains(keys(output.ecs_service_names), "ws")
     error_message = "Disabled WS must remain optional."
+  }
+}
+
+run "independent_ws_and_ai_parameter_access" {
+  command = plan
+  variables {
+    task_definition_arns = {
+      be = "arn:aws:ecs:ap-northeast-2:975779326240:task-definition/star23-be:42"
+      ai = "arn:aws:ecs:ap-northeast-2:975779326240:task-definition/star23-ai:43"
+      ws = "arn:aws:ecs:ap-northeast-2:975779326240:task-definition/star23-ws:44"
+    }
+    ws_infrastructure = { enabled = true, use_backend_config = false }
+    ai_access = {
+      secrets                          = { SETTING = "arn:aws:ssm:ap-northeast-2:975779326240:parameter/external/ai/setting" }
+      additional_execution_secret_arns = ["arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:other-abcdef"]
+    }
+    ws_access = {
+      secrets      = { TOKEN = "arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:ws-abcdef:token::" }
+      kms_key_arns = ["arn:aws:kms:ap-northeast-2:975779326240:key/ws-fixture"]
+    }
   }
 }

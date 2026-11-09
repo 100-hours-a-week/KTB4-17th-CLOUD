@@ -38,7 +38,7 @@ terraform fmt -check -recursive terraform
 python3 scripts/check_terraform.py
 ```
 
-테스트 명령은 세 활성 루트 모두 backend 비활성 init(`-lockfile=readonly`), validate, Terraform mock-provider **plan 전용** 테스트를 실행한다. 전체 resource change를 검사해 금지 리소스 부재, bootstrap 시 앱/구독 미생성, 외부 ARN 연결, 허용 인프라 보존을 확인한다. 실제 AWS provider를 사용하는 가상 상태 fixture는 production의 removed/moved/service HCL을 가져와 네트워크 참조만 fixture 상수로 바꾼다. 모든 이관 대상의 `forget`, 기존 서비스 revision 99/실행 수 5의 no-op, 기존 서비스 비활성화 거부를 검사한다. fixture는 실제 운영 상태가 아니며 임시 디렉터리에서 삭제된다. 테스트는 apply/state 편집 명령/AWS API 호출을 사용하지 않는다.
+테스트 명령은 세 활성 루트 모두 backend 비활성 init(`-lockfile=readonly`), validate, Terraform mock-provider **plan 전용** 테스트를 실행한다. 전체 resource change를 검사해 금지 리소스 부재, bootstrap 시 앱/구독 미생성, 외부 ARN 연결, 허용 인프라 보존을 확인한다. WS 비활성 상태에서도 BE/AI shell을 만들 수 있는지, WS의 공유/독립 Secret·SSM 권한과 KMS 권한, AI의 Secret/SSM 두 권한 경로를 계획의 실제 IAM JSON으로 검사한다. 실제 AWS provider를 사용하는 가상 상태 fixture는 production의 removed/moved/service HCL을 가져와 네트워크 참조만 fixture 상수로 바꾼다. 모든 이관 대상의 `forget`, 기존 서비스 revision 99/실행 수 5의 no-op, 기존 서비스 비활성화 거부를 검사한다. fixture는 실제 운영 상태가 아니며 임시 디렉터리에서 삭제된다. 테스트는 apply/state 편집 명령/AWS API 호출을 사용하지 않는다.
 
 Terraform 요구사항은 >=1.11.0, AWS provider는 ~>6.0 / lock **6.71.0**을 유지한다. `removed` 비파괴 이관은 [Terraform 1.7부터 지원](https://developer.hashicorp.com/terraform/tutorials/state/state-cli)한다. 현재 설치된 Terraform 1.16.4와 잠긴 provider로 검증한다. [removed 공식 계약](https://developer.hashicorp.com/terraform/language/block/removed), [서비스의 외부 scaling 무시](https://registry.terraform.io/providers/hashicorp/aws/6.71.0/docs/resources/ecs_service)를 참조한다.
 
