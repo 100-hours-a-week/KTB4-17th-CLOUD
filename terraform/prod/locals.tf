@@ -1,12 +1,11 @@
 locals {
-  name_prefix       = "star23"
-  vpc_cidr          = "10.1.0.0/16"
-  nat_gateway_zone  = "2a"
-  app_port          = 8080
-  mysql_port        = 3306
-  postgres_port     = 5432
-  version           = "v2"
-  health_check_path = "/actuator/health"
+  environment      = "prod"
+  name_prefix      = "star23"
+  vpc_cidr         = "10.1.0.0/16"
+  nat_gateway_zone = "2a"
+  mysql_port       = 3306
+  postgres_port    = 5432
+  version          = "v2"
 
   zones = {
     "2a" = {

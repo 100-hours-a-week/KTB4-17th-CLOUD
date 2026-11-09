@@ -1,3 +1,11 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
+
 resource "aws_alb" "main" {
   name               = "${var.name_prefix}-alb"
   internal           = false

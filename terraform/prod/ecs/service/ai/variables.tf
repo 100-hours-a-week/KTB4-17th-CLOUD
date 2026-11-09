@@ -36,24 +36,6 @@ variable "ai_image_tag" {
     error_message = "ai_image_tag must be a valid, non-empty ECR image tag."
   }
 }
-variable "ai_port" {
-  description = "AI application listening port; the server must bind to 0.0.0.0"
-  type        = number
-
-  validation {
-    condition     = var.ai_port >= 1 && var.ai_port <= 65535 && floor(var.ai_port) == var.ai_port
-    error_message = "ai_port must be an integer from 1 to 65535."
-  }
-}
-variable "ai_health_check_path" {
-  description = "AI HTTP readiness endpoint that returns status 200 without authentication"
-  type        = string
-
-  validation {
-    condition     = startswith(var.ai_health_check_path, "/") && length(var.ai_health_check_path) <= 1024
-    error_message = "ai_health_check_path must start with / and contain at most 1024 characters."
-  }
-}
 variable "ai_cpu_architecture" {
   description = "AI image CPU architecture: X86_64 or ARM64"
   type        = string
@@ -97,16 +79,6 @@ variable "ai_secret_kms_key_arns" {
   description = "Customer-managed KMS key ARNs encrypting the referenced AI secrets, if any"
   type        = set(string)
   default     = []
-}
-variable "ai_request_timeout_seconds" {
-  description = "Service Connect AI request timeout in seconds; 0 disables the request timeout"
-  type        = number
-  default     = 120
-
-  validation {
-    condition     = var.ai_request_timeout_seconds >= 0 && var.ai_request_timeout_seconds <= 2147483647 && floor(var.ai_request_timeout_seconds) == var.ai_request_timeout_seconds
-    error_message = "ai_request_timeout_seconds must be a non-negative integer no greater than 2147483647."
-  }
 }
 variable "ai_additional_execution_secret_arns" {
   description = "Existing Secrets Manager grants used by CI-managed AI task revisions beyond the Terraform bootstrap definition."

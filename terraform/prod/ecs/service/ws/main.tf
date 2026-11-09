@@ -1,3 +1,11 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
+
 resource "aws_ecs_task_definition" "ws" {
   count = var.ws_enabled ? 1 : 0
 
@@ -33,8 +41,8 @@ resource "aws_ecs_task_definition" "ws" {
 
     portMappings = [{
       name          = "ws"
-      containerPort = var.ws_port
-      hostPort      = var.ws_port
+      containerPort = local.ws_port
+      hostPort      = local.ws_port
       protocol      = "tcp"
     }]
 
@@ -92,7 +100,7 @@ resource "aws_ecs_service" "ws" {
   load_balancer {
     target_group_arn = var.ws_target_group_arn
     container_name   = "ws"
-    container_port   = var.ws_port
+    container_port   = local.ws_port
   }
 
   dynamic "service_connect_configuration" {

@@ -1,3 +1,8 @@
+locals {
+  app_port          = 8080
+  health_check_path = "/actuator/health"
+}
+
 # BE의 일반 설정은 SSM, 비밀값은 Secrets Manager로 주입한다.
 
 resource "aws_ssm_parameter" "be_config" {
