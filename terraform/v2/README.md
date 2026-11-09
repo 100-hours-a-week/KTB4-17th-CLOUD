@@ -7,7 +7,11 @@ terraform -chdir=terraform/v2 init -input=false -lockfile=readonly
 terraform -chdir=terraform/v2 validate
 ```
 
-입력은 권한 제한된 로컬 파일을 명시적 `-var-file`로 전달한다. 현재 재실행용 파일은 저장소에서 제외되는 `.terraform-private/v2.tfvars.json`(0600)이다. 저장소 루트에서 `terraform -chdir=terraform/v2 plan -input=false -lock-timeout=60s -var-file=../../.terraform-private/v2.tfvars.json`으로 검토한다. 앱 설정값이나 비밀값을 담은 이전 입력 파일은 재사용하지 않는다.
+입력은 저장소 밖에서 관리하는 로컬 파일을 명시적 `-var-file`로 전달한다. 저장소 루트에서 아래 명령의 경로를 실제 입력 파일의 절대 경로로 바꿔 계획을 검토한다. 앱 설정값이나 비밀값을 담은 이전 입력 파일은 재사용하지 않는다.
+
+```sh
+terraform -chdir=terraform/v2 plan -input=false -lock-timeout=60s -var-file=/absolute/path/to/v2.tfvars.json
+```
 
 | 입력 | 계약 |
 | --- | --- |

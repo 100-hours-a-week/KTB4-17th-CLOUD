@@ -1,6 +1,5 @@
 .idea/
 .ouroboros/
-.terraform-private/
 **/.terraform/
 **/*.tfvars
 **/*.tfvars.json

@@ -12,18 +12,18 @@ Lambda 함수 전체 lifecycle과 ZIP·runtime·환경·relabel·VPC/DLQ 부착�
 
 ## 운영 입력과 확인
 
-현재 재실행용 입력은 저장소에서 제외되는 루트의 `.terraform-private/cloudwatch.tfvars.json`(0600)에 보관한다. 필수 입력은 `monitoring_ami_id`, `monitoring_ssh_cidrs`, `monitoring_grafana_admin_cidrs`다. V2 VPC/subnet ID와 queue·구독 스위치도 명시한다. 관리자 CIDR을 생략하거나 빈 목록으로 대체하면 기존 접근 규칙을 없앨 수 있으므로 운영 파일을 명시한다. 실제 값은 README·Git에 기록하지 않는다.
+입력은 저장소 밖에서 관리하는 로컬 파일을 명시적 `-var-file`로 전달한다. 필수 입력은 `monitoring_ami_id`, `monitoring_ssh_cidrs`, `monitoring_grafana_admin_cidrs`다. V2 VPC/subnet ID와 queue·구독 스위치도 명시한다. 관리자 CIDR을 생략하거나 빈 목록으로 대체하면 기존 접근 규칙을 없앨 수 있으므로 운영 파일을 명시한다. 실제 값은 README·Git에 기록하지 않는다.
 
-저장소 루트에서 실행한다.
+저장소 루트에서 실행하며, 아래 경로는 실제 입력 파일의 절대 경로로 바꾼다.
 
 ```sh
 terraform -chdir=terraform/v2/cloudwatch init -input=false -lockfile=readonly
 terraform -chdir=terraform/v2/cloudwatch validate
-terraform -chdir=terraform/v2/cloudwatch plan -input=false -lock-timeout=60s -var-file=../../../.terraform-private/cloudwatch.tfvars.json
+terraform -chdir=terraform/v2/cloudwatch plan -input=false -lock-timeout=60s -var-file=/absolute/path/to/cloudwatch.tfvars.json
 terraform -chdir=terraform/v2/cloudwatch output -json monitoring
 ```
 
-`monitoring.security_group_id` 출력은 V2 루트의 `.terraform-private/v2.tfvars.json`에 전달해 BE·WS 메트릭 수신과 연결한다. 두 backend는 각각 잠그고 계획을 검토한다. 현재 모니터링 전체 계획은 무변경이며 V2 전체 계획의 기존 차이 6건은 적용하지 않았다. 선택 속성만 담은 이전·중지 확인 기록은 `.terraform-private/monitoring-migration-receipt.json`에 보관한다.
+`monitoring.security_group_id` 출력은 V2 루트의 `monitoring_security_group_id` 입력으로 전달해 BE·WS 메트릭 수신과 연결한다. 두 backend는 각각 잠그고 계획을 검토한다. 이관 시 모니터링 전체 계획은 무변경이었으며 V2 전체 계획의 기존 차이 6건은 적용하지 않았다.
 
 public IPv4는 고정되지 않는다. 재시작 등으로 주소가 바뀌면 출력 확인 후 DNS를 갱신한다. 복구 시에는 보존 원본·AMI와 private 기록을 확인하고 수집기·Grafana를 두 곳에서 동시에 쓰지 않는다. 호스트·이미지 변경과 데이터 복구는 별도 계획으로 검토한다. 프로그램 설치·Compose·대시보드·수집 설정·실제 데이터는 이 저장소의 Terraform 관리 범위 밖이다.
 
