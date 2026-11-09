@@ -1,23 +1,25 @@
 # 운영 인프라
 
-`prod/terraform.tfstate`를 사용하는 독립 실행 루트다. 네트워크·ALB·RDS·스토리지·CDN·ECS를 조합하고 교차 SG 규칙은 `connections.tf`에서 연결한다. V1 VPC/DB/SG와 기존 EIP·IAM의 공유/외부 소유 범위를 유지한다. 로그 전달은 별도 `cloudwatch/` 루트다.
+독립 backend `prod/terraform.tfstate`를 유지한다. 소유권·비파괴 이관·새 환경의 단계별 순서는 [루트 README](../../README.md)를 따른다. 이 PR은 운영 반영/배포를 실행하지 않는다.
 
 ```sh
 terraform -chdir=terraform/prod init -input=false -lockfile=readonly
 terraform -chdir=terraform/prod validate
 ```
 
-plan에는 저장소 밖 입력 파일을 `-var-file`로 명시한다. 하위 디렉터리의 tfvars는 루트에 자동 적용되지 않는다. 비밀값·state·plan·ZIP은 커밋하지 않는다.
+입력은 저장소 밖 파일을 명시적 `-var-file`로 전달한다. `terraform/terraform.tfvars`는 이 루트에 자동 적용되지 않는다. 기존 secret-value/tfvars를 그대로 재사용하지 않는다.
 
-- `acm_certificate_arn`, `v1_database_network`: 외부 인증서와 기존 V1 네트워크/DB SG 참조.
-- `be_deployment`, `ai_deployment`: 초기 이미지 `image_tag`, 선택적 `cpu_architecture`(X86_64), `desired_count`(2). 이후 task revision은 CI가 관리한다.
-- `ws_deployment`: `image_uri`, 같은 아키텍처/태스크 수, `enabled`, `use_backend_config`. 운영 기본값은 실제 운영처럼 두 bool 모두 true이며 명시적으로 비활성화할 수 있다.
-- 서비스별 `*_runtime`: 비밀이 아닌 `environment`, 외부 secret ARN `secrets`, `kms_key_arns`. AI는 CI revision용 `additional_execution_secret_arns`도 지원한다. 실제 값은 외부에서 전달하며 child 검증을 거친다. BE 일반 설정은 계속 SSM 객체로 관리한다.
-- `ai_database_access`, `ws_database_access`: mysql/postgres 접근 범위.
-- `be_secret_values`, `ai_secret_values`: 검증된 sensitive/ephemeral 런타임 입력. 비밀값은 런타임에만 주입한다. `be_secret_version`은 실제 비밀 교체 시 증가시킨다.
+| 입력 | 계약 |
+| --- | --- |
+| `acm_certificate_arn`, `v1_database_network` | 기존 외부 인증서·V1 DB 네트워크 참조 유지 |
+| `services_enabled` | 기본 true. 기존 서비스는 true 유지. **새 환경 1단계만 false** |
+| `task_definition_arns` | `{be, ai, ws}` 외부 등록 task ARN(리비전 포함). 생성하는 서비스마다 필수. 이미지/CPU/환경/실행 수 입력 없음 |
+| `ws_infrastructure` | `enabled`, `use_backend_config` 기본 true. 기존 `ws_deployment`의 두 bool을 그대로 이전. WS IAM·로그·서비스·공유 접근/Service Connect 범위. ALB route/target group은 기존처럼 항상 유지 |
+| `be_access` | `parameter_arns` map에 기존 `be_runtime.environment`의 각 SSM ARN을 **값 없이** 옮김. `secrets`, `kms_key_arns`는 기존 ARN 참조 유지 |
+| `ai_access` | 이전 `ai_runtime`에서 ARN-only `secrets`, `kms_key_arns`, `additional_execution_secret_arns`만 이전 |
+| `ws_access` | 이전 `ws_runtime`에서 ARN-only `secrets`, `kms_key_arns`만 이전 |
+| `ai_database_access`, `ws_database_access` | 기존 mysql/postgres SG 접근 유지 |
 
-`prod` 라벨과 고정 네트워크 사실은 루트 locals에, 서비스의 포트/헬스 경로/AI timeout은 각 서비스 `configuration.tf`에 있다. 포트 출력은 ALB·SG·Service Connect에 공유하며 서비스 준비 완료를 기다리지 않는다. DB 계정 기본값은 database 모듈 소유다. 태스크 수·이미지·아키텍처·WS 활성화·외부 설정/권한 등 운영 입력은 유지한다.
+ARN map의 key는 권한 참조용 식별자이며 환경 내용을 생성하지 않는다. Secret 참조에는 JSON key/version selector를 허용하되 IAM Resource에는 원본 secret ARN만 사용한다. Secret 컨테이너 ARN도 허용 정책에 유지한다. Terraform은 Secret/SSM 값을 조회하거나 새 version을 발행하지 않는다. `config_references`와 `deployment_infrastructure`는 ARN/역할/로그/ECR 등 인프라 정보만 제공한다.
 
-`storage/ecr.tf`는 ECR, `storage/s3.tf`는 S3를 관리하며 `module.storage`는 유지한다. 각 폴더에 versions.tf가 필요한 것은 아니다. 독립 실행 루트 3곳만 Terraform >=1.11/AWS ~>6.0과 lock 6.71.0을 유지하고 child는 기존 파일에 `required_providers`의 `hashicorp/aws`를 선언한다. 계정 allowlist와 region 설정은 루트에 남는다.
-
-Secret/version → AI task → healthy AI service → BE service 순서와 서비스 노드에 한정된 트래픽/네트워크 준비 조건을 유지한다. NAT 1개를 두 AZ가 공유하므로 장애와 AZ 간 트래픽 영향을 고려한다.
+삭제된 `be_secret_values`, `ai_secret_values`, `be_secret_version`, `*_runtime.environment`, 이미지·아키텍처·원하는 태스크 수는 외부 배포 소유다. 이전 `*_deployment` 객체는 제거됐다. 별도 root인 `cloudwatch/` 입력과 섞지 않는다. NAT 하나를 두 AZ가 공유하는 기존 네트워크 구조와 ALB/SG/DB 설정은 유지한다.
