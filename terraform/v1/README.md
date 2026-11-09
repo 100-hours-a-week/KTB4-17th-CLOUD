@@ -1,0 +1,23 @@
+# 개발 인프라
+
+독립 실행 루트이며 backend는 `dev/terraform.tfstate`다. EC2 3개와 기존 V1 네트워크를 관리한다. SG·EIP·IAM과 VPC 간 peering은 외부 소유로 유지한다. 운영 루트와 합쳐 실행하지 않는다.
+
+## V1 네트워크 소유권
+
+`network`는 기존 자원을 조회하는 `data` 대신 `resource`로 관리한다. 2026-11-09 VPC 1개, IGW 1개, 서브넷 2개, public/default 라우팅 테이블 2개, 인터넷 기본 경로 1개, 서브넷 연결 2개의 원격 state 편입을 완료했다. 실제 자원을 생성·수정·삭제하지 않았으며 기존 ID를 유지했다. 일회성 import 선언은 제거했다.
+
+DNS hostnames 비활성화, 서브넷의 public IP 자동 할당 비활성화, 기존 CIDR·AZ·태그를 실제 AWS와 동일하게 유지한다. EC2가 참조하던 서브넷 map의 키와 ID도 유지한다. `network` 출력은 관리하는 VPC·서브넷·라우팅 테이블·IGW ID를 제공한다.
+
+편입 전 bucket의 여섯 state에서 중복 소유권이 없는지 조사했다. public 테이블의 `10.1.64.0/24`, `10.1.65.0/24` 두 경로는 계속 V2의 prod state가 소유한다. 이 모듈은 inline `route`나 `route = []`를 선언하지 않고 인터넷 기본 경로만 별도 `aws_route`로 관리한다. 따라서 prod 소유 경로와 외부에서 관리하는 나머지 peering 경로를 덮어쓰지 않는다. AWS가 자동 생성한 main/default 테이블은 `aws_default_route_table`로 관리하며 직접 삭제하지 않는다.
+
+V1 VPC에는 dev EC2 외에도 운영 Loki EC2, 로그 전달 Lambda ENI, GPU EC2가 있다. 공유 VPC·IGW·서브넷·테이블·인터넷 경로·연결에는 `prevent_destroy`를 둔다. **현재 dev 전체 destroy는 삭제 보호로 차단된다.** V1을 독립적으로 철거하려면 공유 소비자와 prod peering 경로를 먼저 분리하고, 외부 SG·EIP·IAM 범위도 따로 정해야 한다. 단순한 편입이 공유 의존성 분리까지 완료시키는 것은 아니다.
+
+편입 전 계획은 **9 to import, 0 to add, 0 to change, 0 to destroy**였고, 기존 EC2 3개와 peering 경로 5개를 보존했다. 검토한 계획을 격리된 로컬 state에 반영한 뒤, 백업·잠금·원본 version 확인을 거쳐 원격 dev state에 기록했다. 네트워크 9개와 EC2 3개를 다시 읽어 검증했다. 네트워크 9개 모두의 `prevent_destroy`가 로컬 destroy 계획을 차단하는 것도 확인했다.
+
+```sh
+terraform -chdir=terraform/v1 init -input=false -lockfile=readonly
+terraform -chdir=terraform/v1 validate
+terraform -chdir=terraform/v1 plan -input=false -lock-timeout=60s
+```
+
+`versions.tf`와 lockfile은 실행 루트의 Terraform/provider 버전을 고정한다. child는 기존 파일에 `hashicorp/aws` 요구사항을 선언하고 루트 provider 설정을 상속한다. state·plan은 저장소 밖 권한 제한 경로에 보관한다.

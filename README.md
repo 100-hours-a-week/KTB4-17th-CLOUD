@@ -1,6 +1,17 @@
 # Terraform 인프라 소유권
 
-활성 실행 루트는 `terraform/dev`, `terraform/prod`, `terraform/prod/cloudwatch` 세 곳이다. 로그 전달은 prod와 별도 backend다. 운영 반영은 이 PR의 범위가 아니며 이관 선언도 아직 적용하지 않았다.
+Terraform 실행자용 추가 권한 템플릿은 [bootstrap/iam](bootstrap/iam/README.md)에 보관한다. 인프라 리소스의 IAM 역할·정책은 각 Terraform 모듈에서 관리한다.
+
+활성 실행 루트와 state는 아래처럼 분리한다. 공통 자원은 버전별 destroy 대상에 포함하지 않는다.
+
+| 실행 루트 | backend key | 소유 범위 |
+| --- | --- | --- |
+| [`terraform/common`](terraform/common/README.md) | `common/terraform.tfstate` | 공통 CloudFront·S3·ECR |
+| [`terraform/v1`](terraform/v1/README.md) | `dev/terraform.tfstate` | 기존 V1 EC2·네트워크 |
+| [`terraform/v2`](terraform/v2/README.md) | `prod/terraform.tfstate` | V2 네트워크·ALB·ECS·DB·IAM |
+| [`terraform/v2/cloudwatch`](terraform/v2/cloudwatch/README.md) | `prod/cloudwatch-loki/terraform.tfstate` | 로그 전달 인프라 |
+
+폴더 이름을 바꾼 V1·V2는 기존 backend key를 유지한다. V3를 추가할 때도 공통 자원은 다시 생성하지 않고 common 출력을 참조한다.
 
 | Terraform | 외부 배포/운영 |
 | --- | --- |
@@ -12,13 +23,18 @@
 
 Task definition도 AWS 리소스지만 사용자가 정한 경계에 따라 CI/CD가 소유한다. `ignore_changes`만으로 task definition을 계속 등록하는 구조는 사용하지 않는다. 서비스 shell의 `task_definition`, `desired_count`만 배포 소유 필드라 무시하며, 생성 시에도 외부 ARN과 실행 수 0만 사용한다. 기존 서비스는 실제 revision과 실행 수를 유지한다. 서비스 삭제 방지는 bootstrap 플래그의 잘못된 사용을 차단한다.
 
-## 기존 환경의 검토 가능한 이관
+## 완료한 state 소유권 이관
 
-1. 기존 배포 저장소/운영 설정에서 현재 BE/AI/WS task ARN(리비전 포함), SSM/Secret ARN, KMS ARN을 확인한다. Terraform으로 secret 값을 읽지 않는다. 입력은 [prod 계약](terraform/prod/README.md)에 맞춰 저장소 밖에서 준비한다. 기존 WS 인프라·공유권한 스위치를 보존한다.
-2. 기존 backend key, module 주소, 리소스 이름은 유지한다. BE/AI 서비스는 singleton→`[0]`, Lambda 비동기 호출 설정은 singleton→`[0]`의 `moved` 선언으로 주소만 연결한다. WS는 기존 `[0]`를 유지한다.
-3. `removed` + `destroy=false` 대상은 `module.be.aws_ssm_parameter.be_config`의 **모든 key**, `module.be.aws_secretsmanager_secret_version.be`, BE/AI/WS task definition(WS의 모든 instance), `module.cloudwatch_loki.aws_lambda_function.forwarder`다. 운영자가 나중에 검토·반영할 때 AWS 삭제 없이 Terraform 상태에서만 소유권을 내려놓는다. 선언은 이전 상태의 후속 이관을 위해 보존한다. state CLI 수정이나 import는 필요하지 않다.
-4. 향후 승인된 운영 작업에서 각 루트의 private read-only plan을 검토한다. 위 대상은 `forget`, 서비스는 revision/실행 수 변경 없음, 기타 허용 인프라는 의도한 범위만 나와야 한다. 예상하지 못한 delete/replace/start가 있으면 반영하지 않는다. ARN-only 권한 목록은 기존 ARN을 누락하지 않게 옮긴다.
-5. 외부 배포는 기존 ARN/함수 이름을 인계받아 기존 배포 절차를 이어간다. 이 PR은 새 배포 기능, 대체 소유자의 실시간 활성화, 재배포, 상태 반영을 요구하거나 실행하지 않는다. 기존 함수/Secret/SSM/task revision/서비스는 동작을 계속한다.
+2026-11-09 계정과 리전을 확인하고, 원격 state 백업·네 곳의 잠금·원본 version 대조를 거쳐 아래 내용을 반영했다. 실제 인프라 설정은 변경하지 않았다.
+
+- CloudFront 1개, S3 2개, ECR 2개를 prod state에서 common state로 이동했다.
+- V1 네트워크 9개를 기존 ID로 dev state에 편입했다.
+- SG 규칙 13개, BE·AI 서비스 2개, Lambda 비동기 호출 설정 1개의 주소를 옮기고 ID를 유지했다.
+- 앱 SSM 49개, Secret version 1개, task definition 3개, Lambda 함수 1개는 삭제 없이 Terraform 관리에서 해제했다. 실제 값·프로그램·배포는 외부 관리 범위다.
+
+각 원격 state를 다시 읽어 결과를 검증한 뒤 일회성 `moved`·`import`·`removed` 선언을 모두 제거했다. 유지하는 자원의 선언과 삭제 보호는 남긴다. 예전 state를 그대로 다시 연결하기 위한 이관 선언은 현재 코드에 포함하지 않는다.
+
+운영 입력은 [V2 계약](terraform/v2/README.md)에 맞춰 저장소 밖에 보관한다. 현재 task revision과 SSM/Secret/KMS의 ARN만 전달하며 Terraform으로 실제 설정값을 읽지 않는다. 이관 시 확인한 V2의 기존 설정 차이 6건은 적용하지 않았다. RDS 백업 기간, WS 헬스체크, public subnet의 Kubernetes 태그, WS IAM 정책 차이는 별도로 검토한다.
 
 ## 새로운 환경의 단계별 bootstrap
 
@@ -27,21 +43,22 @@ Task definition도 AWS 리소스지만 사용자가 정한 경계에 따라 CI/C
 1. 새 prod backend와 인증서/기존 네트워크 참조를 준비하고 `services_enabled=false`로 전체 인프라를 생성한다. WS를 쓸 경우 `ws_infrastructure.enabled=true`를 이 단계부터 유지해 IAM·로그를 먼저 만든다. ALB route/target group은 스위치와 무관하게 기존 구조로 유지한다. 서비스와 task definition은 아직 없다. `deployment_infrastructure` 출력으로 cluster·namespace·subnet·execution/task role·로그·ECR·Secret 컨테이너 ARN을 전달한다.
 2. 기존 외부 배포 도구가 이미지 게시, SSM 값과 Secret 실제 값 발행, task definition 등록을 수행한다. 출력의 역할·로그 그룹을 사용하고 아래 서비스별 포트 계약을 충족한다. Terraform 입력에는 실제 값이나 환경 map을 넣지 않는다.
 3. 등록한 세 task ARN을 `task_definition_arns`에 전달하고 `services_enabled=true`로 shell을 생성한다. disabled WS는 ARN이 없어도 된다. 모든 shell의 초기 `desired_count=0`이므로 Terraform은 앱을 시작하지 않는다. 이후 외부 배포가 AI→BE/WS 준비 순서로 task revision과 실행 수를 설정하고 readiness를 확인한다. 이후 revision/실행 수는 CI/CD에서 계속 관리한다.
-4. 독립 로그 루트는 [로그 bootstrap](terraform/prod/cloudwatch/README.md) 순서로 인프라→외부 Lambda 생성→구독 연결을 진행한다. 빈 ZIP·더미 이미지·provisioner는 없다.
+4. 독립 로그 루트는 [로그 bootstrap](terraform/v2/cloudwatch/README.md) 순서로 인프라→외부 Lambda 생성→구독 연결을 진행한다. 빈 ZIP·더미 이미지·provisioner는 없다.
 
 BE: 컨테이너 `be`, 포트 8080, ALB health `/actuator/health`. WS: `ws`, 포트/port mapping 이름 `ws` 8080, 같은 ALB health. AI: `ai`, `ai-http` 포트 8000, Service Connect `ai`, HTTP health `/health`, 요청 timeout 150초. 외부 task는 Fargate/awsvpc와 이 이름·포트를 충족해야 한다. container health 명령, 로그 `awslogs` 설정과 runtime 내용은 배포 저장소가 관리한다.
 
-## 오프라인 검증
+## 검증
 
 ```sh
-terraform fmt -check -recursive terraform
-python3 scripts/check_terraform.py
+terraform fmt -check -recursive terraform/common
+terraform -chdir=terraform/common init -input=false -lockfile=readonly
+terraform -chdir=terraform/common validate
+terraform -chdir=terraform/v1 test
+terraform -chdir=terraform/v2 test
 ```
 
-테스트 명령은 세 활성 루트 모두 backend 비활성 init(`-lockfile=readonly`), validate, Terraform mock-provider **plan 전용** 테스트를 실행한다. 전체 resource change를 검사해 금지 리소스 부재, bootstrap 시 앱/구독 미생성, 외부 ARN 연결, 허용 인프라 보존을 확인한다. WS 비활성 상태에서도 BE/AI shell을 만들 수 있는지, WS의 공유/독립 Secret·SSM 권한과 KMS 권한, AI의 Secret/SSM 두 권한 경로를 계획의 실제 IAM JSON으로 검사한다. 실제 AWS provider를 사용하는 가상 상태 fixture는 production의 removed/moved/service HCL을 가져와 네트워크 참조만 fixture 상수로 바꾼다. 모든 이관 대상의 `forget`, 기존 서비스 revision 99/실행 수 5의 no-op, 기존 서비스 비활성화 거부를 검사한다. fixture는 실제 운영 상태가 아니며 임시 디렉터리에서 삭제된다. 테스트는 apply/state 편집 명령/AWS API 호출을 사용하지 않는다.
+각 실행 루트는 최초 실행 시 해당 디렉터리에서 init을 수행한다. HCL 테스트는 mock provider의 plan으로 외부 참조와 선택적 구성 경로를 검증한다. 실제 환경의 drift와 권한은 별도 읽기 전용 plan으로 확인한다. 이관에서는 common·V1 및 기존 로그 전달 구성의 무변경 계획과 모든 유지 대상 ID를 확인했다. V2 전체 plan에는 위에 적은 기존 설정 차이가 남아 있어 전체 apply는 실행하지 않았다.
 
-Terraform 요구사항은 >=1.11.0, AWS provider는 ~>6.0 / lock **6.71.0**을 유지한다. `removed` 비파괴 이관은 [Terraform 1.7부터 지원](https://developer.hashicorp.com/terraform/tutorials/state/state-cli)한다. 현재 설치된 Terraform 1.16.4와 잠긴 provider로 검증한다. [removed 공식 계약](https://developer.hashicorp.com/terraform/language/block/removed), [서비스의 외부 scaling 무시](https://registry.terraform.io/providers/hashicorp/aws/6.71.0/docs/resources/ecs_service)를 참조한다.
+Terraform 요구사항은 >=1.11.0, AWS provider는 ~>6.0 / lock **6.71.0**을 유지한다. 실제 state·plan·비밀값·패키지는 저장소에 넣지 않는다. 원격 state 백업과 이관 작업 파일은 저장소 밖 권한 제한 경로에 보관했다.
 
-운영 read-only plan은 이 실행에서 수행하지 않았다. 오프라인 fixture는 운영 drift·실제 IAM/배포 권한·AWS API 수용 여부를 증명하지 않는다. 운영 반영 전 private plan과 배포 도구의 계약 확인이 남아 있다. 비밀값/state/plan/ZIP은 출력·커밋하지 않는다. 운영 입력은 저장소 밖에 보관하고 `-var-file`로 활성 루트에 명시한다.
-
-모니터링 수집기·대시보드·Docker Compose와 Lambda 패키지 배포 소스는 이 인프라 저장소에 두지 않는다. 사용하지 않는 중복 Terraform 루트·모듈·import 선언과 이전 앱 입력·캐시도 실행 디렉터리에 남기지 않는다. 활성 루트별 lockfile은 유지한다. `terraform/prod/cloudwatch`는 IAM·SG·로그·SQS·호출 권한·구독을 관리하는 인프라 루트이며, 기존 backend key와 AWS 리소스 이름의 `cloudwatch-loki`는 소유권 연결을 위해 유지한다.
+모니터링 수집기·대시보드·Docker Compose와 Lambda 패키지 배포 소스는 외부에서 관리한다. Terraform은 호스트·네트워크·IAM·로그·호출 권한·구독 등 인프라 자원을 관리한다. 기존 backend key와 AWS 리소스 이름의 `cloudwatch-loki`는 소유권 연결을 위해 유지한다.
