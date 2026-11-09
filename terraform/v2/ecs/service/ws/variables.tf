@@ -45,12 +45,12 @@ variable "image_bucket_arn" {
   type        = string
 }
 variable "ws_enabled" {
-  description = "Deploy a standalone WebSocket service; disabled when the backend handles WebSocket traffic."
+  description = "Create WS IAM roles and logs, plus its ECS service when services_enabled is true. SG/database rules remain independent."
   type        = bool
   default     = false
 }
 variable "ws_use_backend_config" {
-  description = "Reuse backend SSM, secret, S3, and Service Connect configuration for a WebSocket task running the backend image."
+  description = "Reuse BE Secret/SSM and KMS permissions, grant image-bucket access, and enable the WS Service Connect client."
   type        = bool
   default     = false
 }

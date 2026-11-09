@@ -19,7 +19,7 @@ variable "task_definition_arns" {
   default     = {}
 }
 variable "ws_infrastructure" {
-  description = "WS infrastructure and shared permission/Service Connect switches; preserve existing settings on transition."
+  description = "enabled controls WS IAM/logs/service; use_backend_config shares BE ARN/KMS/S3 permissions and enables Service Connect."
   type        = object({ enabled = optional(bool, true), use_backend_config = optional(bool, true) })
   default     = {}
 }

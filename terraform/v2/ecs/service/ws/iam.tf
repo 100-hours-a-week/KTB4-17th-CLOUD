@@ -56,41 +56,26 @@ resource "aws_iam_role" "service_task" {
 /**
  * WS secret access
  *
- * Secret·SSM ARN으로 읽기 권한을 제한하며, Terraform은 실제 값을 조회하지 않는다.
+ * 각 Secret·SSM ARN에 필요한 읽기 권한을 부여하며, 실제 값은 조회하지 않는다.
  */
 resource "aws_iam_role_policy" "service_execution_secrets" {
   for_each = {
     for name, settings in local.additional_ecs_services : name => settings
-    if length(settings.secrets) > 0 || (name == "ai" && length([]) > 0)
+    if length(settings.secrets) > 0
   }
 
   name = "${var.name_prefix}-${each.key}-ecs-execution-secrets"
   role = aws_iam_role.service_execution[each.key].id
 
-  # Preserve the consolidated live AI policy and the WS statement structure.
-  policy = each.key == "ai" && alltrue([for value_from in values(each.value.secrets) : startswith(value_from, "arn:aws:secretsmanager:")]) ? jsonencode({
+  policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = ["secretsmanager:GetSecretValue"]
-      Resource = distinct(concat([
-        for value_from in values(each.value.secrets) :
-        join(":", slice(split(":", value_from), 0, 7))
-      ], tolist([])))
-    }]
-    }) : jsonencode({
-    Version = "2012-10-17"
-    Statement = concat([
+    Statement = [
       for value_from in values(each.value.secrets) : {
         Effect   = "Allow"
         Action   = startswith(value_from, "arn:aws:secretsmanager:") ? ["secretsmanager:GetSecretValue"] : ["ssm:GetParameters"]
         Resource = startswith(value_from, "arn:aws:secretsmanager:") ? join(":", slice(split(":", value_from), 0, 7)) : value_from
       }
-      ], each.key == "ai" && length([]) > 0 ? [{
-        Effect   = "Allow"
-        Action   = ["secretsmanager:GetSecretValue"]
-        Resource = tolist([])
-    }] : [])
+    ]
   })
 }
 

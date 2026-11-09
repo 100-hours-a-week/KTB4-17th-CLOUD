@@ -4,26 +4,29 @@
 module "network" {
   source = "./network"
 
-  name_prefix      = local.name_prefix
+  name_prefix = local.name_prefix
+  environment = local.environment
+  vpc_version = local.version
+
   vpc_cidr         = local.vpc_cidr
   nat_gateway_zone = local.nat_gateway_zone
-  vpc_version      = local.version
   zones            = local.zones
-  environment      = local.environment
 }
 
 /**
  * Application load balancer
  */
 module "alb" {
+  source = "./alb"
+
+  name_prefix = local.name_prefix
+  environment = local.environment
+
+  vpc_id            = module.network.vpc_id
+  public_subnet_ids = module.network.public_subnet_ids
+
   be_security_group_id = module.be.security_group_id
   ws_security_group_id = module.ws.security_group_id
-  environment          = local.environment
-  source               = "./alb"
-
-  name_prefix          = local.name_prefix
-  vpc_id               = module.network.vpc_id
-  public_subnet_ids    = module.network.public_subnet_ids
   app_port             = module.be.port
   health_check_path    = module.be.health_check_path
   ws_port              = module.ws.port
@@ -35,25 +38,28 @@ module "alb" {
  * Databases
  */
 module "database" {
-  be_security_group_id = module.be.security_group_id
-  ws_security_group_id = module.ws.security_group_id
-  ai_security_group_id = module.ai.security_group_id
-  environment          = local.environment
-  source               = "./database"
+  source = "./database"
 
-  name_prefix     = local.name_prefix
-  vpc_version     = local.version
+  name_prefix = local.name_prefix
+  environment = local.environment
+  vpc_version = local.version
+
   vpc_id          = module.network.vpc_id
   data_subnet_ids = module.network.data_subnet_ids
   mysql_port      = local.mysql_port
   postgres_port   = local.postgres_port
+
+  be_security_group_id = module.be.security_group_id
+  ws_security_group_id = module.ws.security_group_id
+  ai_security_group_id = module.ai.security_group_id
 }
 
 /**
  * ECS cluster
  */
 module "cluster" {
-  source      = "./ecs/cluster"
+  source = "./ecs/cluster"
+
   name_prefix = local.name_prefix
   environment = local.environment
 }
@@ -62,72 +68,84 @@ module "cluster" {
  * AI service
  */
 module "ai" {
-  be_security_group_id                = module.be.security_group_id
-  ws_security_group_id                = module.ws.security_group_id
-  services_enabled                    = var.services_enabled
-  task_definition_arn                 = var.task_definition_arns.ai
-  source                              = "./ecs/service/ai"
-  name_prefix                         = local.name_prefix
-  environment                         = local.environment
-  cluster_id                          = module.cluster.id
-  namespace_arn                       = module.cluster.namespace_arn
-  subnet_ids                          = module.network.application_subnet_ids
-  vpc_id                              = module.network.vpc_id
+  source = "./ecs/service/ai"
+
+  name_prefix = local.name_prefix
+  environment = local.environment
+
+  vpc_id     = module.network.vpc_id
+  subnet_ids = module.network.application_subnet_ids
+
+  cluster_id           = module.cluster.id
+  namespace_arn        = module.cluster.namespace_arn
+  be_security_group_id = module.be.security_group_id
+  ws_security_group_id = module.ws.security_group_id
+  traffic_rule_ids     = module.database.ai_rule_ids
+
   ai_secrets                          = var.ai_access.secrets
   ai_secret_kms_key_arns              = var.ai_access.kms_key_arns
   ai_additional_execution_secret_arns = var.ai_access.additional_execution_secret_arns
-  traffic_rule_ids                    = module.database.ai_rule_ids
 
+  services_enabled    = var.services_enabled
+  task_definition_arn = var.task_definition_arns.ai
 }
 
 /**
  * BE service
  */
 module "be" {
-  monitoring_security_group_id = var.monitoring_security_group_id
-  alb_security_group_id        = module.alb.alb_security_group_id
-  services_enabled             = var.services_enabled
-  task_definition_arn          = var.task_definition_arns.be
-  source                       = "./ecs/service/be"
-  name_prefix                  = local.name_prefix
-  environment                  = local.environment
+  source = "./ecs/service/be"
+
+  name_prefix = local.name_prefix
+  environment = local.environment
+
+  vpc_id     = module.network.vpc_id
+  subnet_ids = module.network.application_subnet_ids
+
   cluster_id                   = module.cluster.id
   namespace_arn                = module.cluster.namespace_arn
-  subnet_ids                   = module.network.application_subnet_ids
-  vpc_id                       = module.network.vpc_id
+  alb_security_group_id        = module.alb.alb_security_group_id
   be_target_group_arn          = module.alb.be_target_group_arn
-  image_bucket_arn             = data.terraform_remote_state.common.outputs.image_bucket_arn
-  be_secrets                   = var.be_access.secrets
-  be_parameter_arns            = var.be_access.parameter_arns
-  be_secret_kms_key_arns       = var.be_access.kms_key_arns
   ai_service_name              = module.ai.service_name
+  monitoring_security_group_id = var.monitoring_security_group_id
   traffic_rule_ids             = concat(module.alb.egress_rule_ids, module.database.be_rule_ids, module.ai.ingress_rule_ids)
 
+  image_bucket_arn       = data.terraform_remote_state.common.outputs.image_bucket_arn
+  be_secrets             = var.be_access.secrets
+  be_parameter_arns      = var.be_access.parameter_arns
+  be_secret_kms_key_arns = var.be_access.kms_key_arns
+
+  services_enabled    = var.services_enabled
+  task_definition_arn = var.task_definition_arns.be
 }
 
 /**
  * WS service
  */
 module "ws" {
-  monitoring_security_group_id = var.monitoring_security_group_id
-  alb_security_group_id        = module.alb.alb_security_group_id
-  services_enabled             = var.services_enabled
-  task_definition_arn          = var.task_definition_arns.ws
-  source                       = "./ecs/service/ws"
-  name_prefix                  = local.name_prefix
-  environment                  = local.environment
+  source = "./ecs/service/ws"
+
+  name_prefix = local.name_prefix
+  environment = local.environment
+
+  vpc_id     = module.network.vpc_id
+  subnet_ids = module.network.application_subnet_ids
+
   cluster_id                   = module.cluster.id
   namespace_arn                = module.cluster.namespace_arn
-  subnet_ids                   = module.network.application_subnet_ids
-  vpc_id                       = module.network.vpc_id
-  backend_config_references    = module.be.config_references
-  backend_kms_key_arns         = var.be_access.kms_key_arns
+  alb_security_group_id        = module.alb.alb_security_group_id
   ws_target_group_arn          = module.alb.ws_target_group_arn
-  image_bucket_arn             = data.terraform_remote_state.common.outputs.image_bucket_arn
-  ws_enabled                   = var.ws_infrastructure.enabled
-  ws_use_backend_config        = var.ws_infrastructure.use_backend_config
-  ws_secrets                   = var.ws_access.secrets
-  ws_secret_kms_key_arns       = var.ws_access.kms_key_arns
+  monitoring_security_group_id = var.monitoring_security_group_id
   traffic_rule_ids             = concat(module.alb.egress_rule_ids, module.database.ws_rule_ids, module.ai.ingress_rule_ids)
 
+  image_bucket_arn          = data.terraform_remote_state.common.outputs.image_bucket_arn
+  backend_config_references = module.be.config_references
+  backend_kms_key_arns      = var.be_access.kms_key_arns
+  ws_secrets                = var.ws_access.secrets
+  ws_secret_kms_key_arns    = var.ws_access.kms_key_arns
+
+  ws_enabled            = var.ws_infrastructure.enabled
+  ws_use_backend_config = var.ws_infrastructure.use_backend_config
+  services_enabled      = var.services_enabled
+  task_definition_arn   = var.task_definition_arns.ws
 }
