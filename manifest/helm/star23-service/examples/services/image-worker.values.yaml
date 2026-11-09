@@ -1,0 +1,10 @@
+# HTTP image-analysis role on the unchanged FastAPI image.
+# Select this overlay together with examples/ai.values.yaml in namespace user.
+nameOverride: image-worker
+service:
+  enabled: true
+  port: 8000
+ingress:
+  enabled: false
+nodeSelector:
+  workload-class: cpu

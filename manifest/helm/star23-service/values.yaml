@@ -1,0 +1,76 @@
+nameOverride: ""
+replicaCount: 1
+
+image:
+  repository: ""
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+
+command: []
+args: []
+
+containerPort: 8080
+service:
+  enabled: true
+  port: 80
+
+labels:
+  component: api-server
+  partOf: star23sharp
+  team: user
+  environment: prod
+  framework: ""
+
+resources:
+  requests:
+    cpu: "1"
+    memory: 2Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+configMap:
+  enabled: false
+  data: {}
+
+env: []
+envFrom: []
+serviceAccountName: ""
+serviceAccount:
+  create: false
+
+# Requires External Secrets Operator and Pod Identity on its controller ServiceAccount.
+# Secrets Manager values are never stored in this chart.
+externalSecret:
+  enabled: false
+  region: ap-northeast-2
+  refreshInterval: 1h
+  parameterStoreEnabled: false
+  data: []
+
+probes:
+  readiness:
+    enabled: false
+    path: /actuator/health
+    initialDelaySeconds: 10
+  liveness:
+    enabled: false
+    path: /actuator/health
+    initialDelaySeconds: 30
+
+ingress:
+  enabled: false
+  host: v3.star23sharp.com
+  path: /
+  pathType: Prefix
+  paths: []
+  groupName: star23-v3
+  groupOrder: 1
+  listenPorts: '[{"HTTPS":443}]'
+  certificateArn: ""
+  healthcheckPath: /actuator/health

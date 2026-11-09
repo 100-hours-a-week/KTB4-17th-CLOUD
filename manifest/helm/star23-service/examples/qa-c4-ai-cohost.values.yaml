@@ -1,0 +1,12 @@
+# QA boot only: co-locate two full FastAPI images on one c4.large.
+# This is below the face-certification design request (2 CPU / 4 GiB).
+# Keep Ingress disabled and do not use this overlay for production traffic.
+nodeSelector:
+  workload-class: cpu
+resources:
+  requests:
+    cpu: "750m"
+    memory: 1250Mi
+  limits:
+    cpu: "1"
+    memory: 2Gi

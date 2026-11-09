@@ -1,0 +1,37 @@
+{{- if .Values.ingress.enabled }}
+{{- if not .Values.service.enabled }}{{ fail "ingress.enabled requires service.enabled" }}{{ end }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "star23.name" . }}
+  labels:
+    {{- include "star23.labels" . | nindent 4 }}
+  annotations:
+    alb.ingress.kubernetes.io/group.name: {{ .Values.ingress.groupName | quote }}
+    alb.ingress.kubernetes.io/group.order: {{ .Values.ingress.groupOrder | quote }}
+    alb.ingress.kubernetes.io/listen-ports: {{ .Values.ingress.listenPorts | quote }}
+    {{- with .Values.ingress.certificateArn }}
+    alb.ingress.kubernetes.io/certificate-arn: {{ . | quote }}
+    {{- end }}
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: {{ .Values.ingress.healthcheckPath | quote }}
+spec:
+  ingressClassName: alb
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          {{- $paths := .Values.ingress.paths }}
+          {{- if not $paths }}
+          {{- $paths = list (dict "path" .Values.ingress.path "pathType" .Values.ingress.pathType) }}
+          {{- end }}
+          {{- range $route := $paths }}
+          - path: {{ required "ingress path is required" $route.path | quote }}
+            pathType: {{ default "Prefix" $route.pathType }}
+            backend:
+              service:
+                name: {{ include "star23.name" $ }}
+                port:
+                  name: http
+          {{- end }}
+{{- end }}
