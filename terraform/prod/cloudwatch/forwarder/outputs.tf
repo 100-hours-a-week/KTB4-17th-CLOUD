@@ -1,9 +1,9 @@
 output "function_name" {
-  value = aws_lambda_function.forwarder.function_name
+  value = var.name
 }
 
 output "function_arn" {
-  value = aws_lambda_function.forwarder.arn
+  value = local.function_arn
 }
 
 output "security_group_id" {
@@ -24,4 +24,16 @@ output "failed_events_queue_url" {
 
 output "subscription_filter_names" {
   value = { for service, filter in aws_cloudwatch_log_subscription_filter.ecs : service => filter.name }
+}
+
+output "deployment_infrastructure" {
+  value = {
+    function_name          = var.name
+    function_arn           = local.function_arn
+    execution_role_arn     = aws_iam_role.forwarder.arn
+    subnet_ids             = var.subnet_ids
+    security_group_ids     = [aws_security_group.forwarder.id]
+    log_group_name         = aws_cloudwatch_log_group.forwarder.name
+    dead_letter_target_arn = try(aws_sqs_queue.failed_events[0].arn, null)
+  }
 }

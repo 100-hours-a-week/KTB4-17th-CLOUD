@@ -18,49 +18,6 @@ data "aws_cloudwatch_log_group" "source" {
 locals {
   function_arn = "arn:${data.aws_partition.current.partition}:lambda:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:function:${var.name}"
   tags         = merge(var.tags, { Name = var.name, environment = "prod" })
-  labels       = merge(var.extra_labels, { environment = "prod", job = "ecs", source = "cloudwatch" })
-
-  # v1.0.1 omits ScratchBuilder.Sort() before relabeling a Go map.
-  # Keep only the CloudWatch group as input (one label is always sorted), then
-  # add constants through relabeling instead of the EXTRA_LABELS map.
-  # https://github.com/grafana/lambda-promtail/blob/v1.0.1/pkg/main.go#L185-L200
-  relabel_configs = jsonencode(concat([
-    {
-      source_labels = ["__aws_cloudwatch_log_group"]
-      regex         = "/ecs/[^/]+/prod/(be|ws|ai)"
-      target_label  = "service"
-      replacement   = "$1"
-      action        = "replace"
-    },
-    {
-      source_labels = ["service"]
-      regex         = "be"
-      target_label  = "service"
-      replacement   = "spring"
-      action        = "replace"
-    },
-    {
-      source_labels = ["__aws_cloudwatch_log_group"]
-      regex         = "/ecs/([^/]+)/prod/(be|ws|ai)"
-      target_label  = "ecs_service"
-      replacement   = "$1-$2-service"
-      action        = "replace"
-    },
-    {
-      source_labels = ["__aws_cloudwatch_log_group"]
-      target_label  = "cloudwatch_log_group"
-      action        = "replace"
-    },
-    {
-      regex  = "__aws_.*"
-      action = "labeldrop"
-    }
-    ], [for name in sort(keys(local.labels)) : {
-      action       = "replace"
-      target_label = name
-      replacement  = replace(local.labels[name], "$", "$$")
-  }]))
-
   eni_actions = [
     "ec2:CreateNetworkInterface",
     "ec2:DescribeNetworkInterfaces",
@@ -182,88 +139,41 @@ resource "aws_iam_role_policy" "execution" {
   policy = data.aws_iam_policy_document.execution.json
 }
 
-resource "aws_lambda_function" "forwarder" {
-  function_name = var.name
-  description   = "Forward production ECS CloudWatch log batches to private Loki"
-  role          = aws_iam_role.forwarder.arn
+removed {
+  from = aws_lambda_function.forwarder
+  lifecycle { destroy = false }
+}
 
-  filename         = var.lambda_zip_path
-  source_code_hash = filebase64sha256(var.lambda_zip_path)
-  package_type     = "Zip"
-  runtime          = "provided.al2023"
-  architectures    = ["x86_64"]
-  handler          = "bootstrap"
-
-  timeout                        = 60
-  memory_size                    = 256
-  reserved_concurrent_executions = var.reserved_concurrency
-
-  vpc_config {
-    subnet_ids         = var.subnet_ids
-    security_group_ids = [aws_security_group.forwarder.id]
-  }
-
-  dynamic "dead_letter_config" {
-    for_each = var.enable_dlq ? [1] : []
-    content {
-      target_arn = aws_sqs_queue.failed_events[0].arn
-    }
-  }
-
-  environment {
-    variables = {
-      WRITE_ADDRESS            = var.loki_write_address
-      EXTRA_LABELS             = ""
-      DROP_LABELS              = "__aws_log_type,__aws_cloudwatch_owner"
-      OMIT_EXTRA_LABELS_PREFIX = "true"
-      RELABEL_CONFIGS          = local.relabel_configs
-      KEEP_STREAM              = "false"
-      PRINT_LOG_LINE           = "false"
-      LOG_LEVEL                = "info"
-    }
-  }
-
-  tags = local.tags
-
-  lifecycle {
-    precondition {
-      condition     = filesha256(var.lambda_zip_path) == var.lambda_zip_sha256
-      error_message = "Lambda ZIP does not match the expected, verified upstream artifact checksum."
-    }
-  }
-
-  depends_on = [
-    aws_iam_role_policy.execution,
-    aws_cloudwatch_log_group.forwarder,
-    aws_vpc_security_group_egress_rule.to_loki,
-    aws_vpc_security_group_ingress_rule.loki_from_forwarder,
-  ]
+moved {
+  from = aws_lambda_function_event_invoke_config.forwarder
+  to   = aws_lambda_function_event_invoke_config.forwarder[0]
 }
 
 resource "aws_lambda_function_event_invoke_config" "forwarder" {
-  function_name                = aws_lambda_function.forwarder.function_name
+  count                        = var.enable_function_connections ? 1 : 0
+  function_name                = var.name
   maximum_retry_attempts       = 2
   maximum_event_age_in_seconds = 3600
 }
 
 resource "aws_lambda_permission" "cloudwatch" {
-  for_each = var.log_groups
+  for_each = var.enable_function_connections ? var.log_groups : {}
 
   statement_id   = "AllowCloudWatch-${each.key}"
   action         = "lambda:InvokeFunction"
-  function_name  = aws_lambda_function.forwarder.function_name
+  function_name  = var.name
   principal      = "logs.${data.aws_region.current.region}.${data.aws_partition.current.dns_suffix}"
   source_account = data.aws_caller_identity.current.account_id
   source_arn     = "${trimsuffix(data.aws_cloudwatch_log_group.source[each.key].arn, ":*")}:*"
 }
 
 resource "aws_cloudwatch_log_subscription_filter" "ecs" {
-  for_each = var.log_groups
+  for_each = var.enable_function_connections ? var.log_groups : {}
 
   name            = "${var.name}-${each.key}"
   log_group_name  = each.value
   filter_pattern  = ""
-  destination_arn = aws_lambda_function.forwarder.arn
+  destination_arn = local.function_arn
 
   depends_on = [
     aws_lambda_permission.cloudwatch,

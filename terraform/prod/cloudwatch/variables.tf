@@ -15,3 +15,9 @@ variable "enable_failure_queue" {
   type        = bool
   default     = false
 }
+
+variable "enable_function_connections" {
+  description = "False only during fresh infrastructure stage, true after external Lambda creation. Keep true for existing logging."
+  type        = bool
+  default     = true
+}

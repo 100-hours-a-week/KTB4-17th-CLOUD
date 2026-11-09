@@ -17,3 +17,7 @@ output "failed_events_queue_url" {
 output "grafana_logql" {
   value = "{environment=\"prod\", source=\"cloudwatch\"}"
 }
+
+output "deployment_infrastructure" {
+  value = module.cloudwatch_loki.deployment_infrastructure
+}
