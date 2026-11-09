@@ -7,7 +7,7 @@ terraform -chdir=terraform/prod init -input=false -lockfile=readonly
 terraform -chdir=terraform/prod validate
 ```
 
-입력은 저장소 밖 파일을 명시적 `-var-file`로 전달한다. `terraform/terraform.tfvars`는 이 루트에 자동 적용되지 않는다. 기존 secret-value/tfvars를 그대로 재사용하지 않는다.
+입력은 저장소 밖 파일을 명시적 `-var-file`로 전달한다. 앱 설정값이나 비밀값을 담은 이전 입력 파일은 재사용하지 않는다.
 
 | 입력 | 계약 |
 | --- | --- |

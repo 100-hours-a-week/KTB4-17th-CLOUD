@@ -42,6 +42,6 @@ python3 scripts/check_terraform.py
 
 Terraform 요구사항은 >=1.11.0, AWS provider는 ~>6.0 / lock **6.71.0**을 유지한다. `removed` 비파괴 이관은 [Terraform 1.7부터 지원](https://developer.hashicorp.com/terraform/tutorials/state/state-cli)한다. 현재 설치된 Terraform 1.16.4와 잠긴 provider로 검증한다. [removed 공식 계약](https://developer.hashicorp.com/terraform/language/block/removed), [서비스의 외부 scaling 무시](https://registry.terraform.io/providers/hashicorp/aws/6.71.0/docs/resources/ecs_service)를 참조한다.
 
-운영 read-only plan은 이 실행에서 수행하지 않았다. 오프라인 fixture는 운영 drift·실제 IAM/배포 권한·AWS API 수용 여부를 증명하지 않는다. 운영 반영 전 private plan과 배포 도구의 계약 확인이 남아 있다. 비밀값/state/plan/ZIP은 출력·커밋하지 않는다. `terraform/terraform.tfvars`는 prod에서 자동 로드되지 않는다. `-var-file`로 활성 루트의 외부 입력을 명시한다.
+운영 read-only plan은 이 실행에서 수행하지 않았다. 오프라인 fixture는 운영 drift·실제 IAM/배포 권한·AWS API 수용 여부를 증명하지 않는다. 운영 반영 전 private plan과 배포 도구의 계약 확인이 남아 있다. 비밀값/state/plan/ZIP은 출력·커밋하지 않는다. 운영 입력은 저장소 밖에 보관하고 `-var-file`로 활성 루트에 명시한다.
 
-원본 작업 디렉터리의 비추적 `iam/terraform-rds-encryption.json`, `monitoring/`, `terraform/.terraform.lock.hcl`, `terraform/cloudwatch-loki/`, `terraform/import_ws_ai_ingress.tf`, `terraform/modules/`는 사용자 자료로 보존했다. 특히 비추적 `cloudwatch-loki`/`modules`의 이전 프로그램 관리 코드는 이 PR의 활성 tracked 루트에 포함되지 않으며 별도 정리 대상이다. 원본 루트 전체를 재귀 실행해 이 파일들을 합치지 않는다.
+모니터링 수집기·대시보드·Docker Compose와 Lambda 패키지 배포 소스는 이 인프라 저장소에 두지 않는다. 사용하지 않는 중복 Terraform 루트·모듈·import 선언과 이전 앱 입력·캐시도 실행 디렉터리에 남기지 않는다. 활성 루트별 lockfile은 유지한다. `terraform/prod/cloudwatch`는 IAM·SG·로그·SQS·호출 권한·구독을 관리하는 인프라 루트이며, 기존 backend key와 AWS 리소스 이름의 `cloudwatch-loki`는 소유권 연결을 위해 유지한다.
