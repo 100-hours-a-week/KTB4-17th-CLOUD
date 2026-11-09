@@ -4,14 +4,16 @@ provider "aws" {
 }
 
 /**
- * Loki references
+ * V2 monitoring host
  */
-data "aws_instance" "loki" {
-  instance_id = var.loki_instance_id
-}
-
-data "aws_subnet" "loki" {
-  id = data.aws_instance.loki.subnet_id
+module "monitoring" {
+  source                             = "./monitoring"
+  ami_id                             = var.monitoring_ami_id
+  vpc_id                             = var.monitoring_vpc_id
+  subnet_id                          = var.monitoring_subnet_id
+  ssh_cidrs                          = var.monitoring_ssh_cidrs
+  grafana_admin_cidrs                = var.monitoring_grafana_admin_cidrs
+  lambda_forwarder_security_group_id = module.cloudwatch_loki.security_group_id
 }
 
 /**
@@ -23,9 +25,9 @@ module "cloudwatch_loki" {
   source = "./forwarder"
 
   name                   = "star23-prod-cloudwatch-loki"
-  vpc_id                 = data.aws_subnet.loki.vpc_id
-  subnet_ids             = [data.aws_instance.loki.subnet_id]
-  loki_security_group_id = var.loki_security_group_id
+  vpc_id                 = var.monitoring_vpc_id
+  subnet_ids             = [module.monitoring.subnet_id]
+  loki_security_group_id = module.monitoring.security_group_id
 
   enable_function_connections = var.enable_function_connections
   enable_dlq                  = var.enable_failure_queue

@@ -31,3 +31,19 @@ resource "aws_vpc_security_group_ingress_rule" "app_from_alb" {
     Name = "${var.name_prefix}-app-from-alb-ingress"
   }
 }
+
+/**
+ * Monitoring scrape
+ *
+ * V2 모니터링 SG에서 오는 Prometheus 수집 요청만 허용한다.
+ */
+resource "aws_vpc_security_group_ingress_rule" "metrics_from_monitoring" {
+  count                        = var.monitoring_security_group_id == null ? 0 : 1
+  security_group_id            = aws_security_group.app.id
+  referenced_security_group_id = var.monitoring_security_group_id
+  ip_protocol                  = "tcp"
+  from_port                    = local.app_port
+  to_port                      = local.app_port
+  description                  = "Prometheus scrape from V2 monitoring"
+  tags                         = { Name = "${var.name_prefix}-app-from-monitoring", environment = var.environment }
+}

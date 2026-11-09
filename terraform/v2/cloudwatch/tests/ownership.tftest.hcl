@@ -10,6 +10,13 @@ mock_provider "aws" {
   mock_data "aws_caller_identity" { defaults = { account_id = "975779326240" } }
   mock_data "aws_subnet" { defaults = { vpc_id = "vpc-0123456789abcdef0" } }
 }
+variables {
+  monitoring_ami_id              = "ami-0123456789abcdef0"
+  monitoring_vpc_id              = "vpc-0123456789abcdef0"
+  monitoring_subnet_id           = "subnet-0123456789abcdef0"
+  monitoring_ssh_cidrs           = []
+  monitoring_grafana_admin_cidrs = []
+}
 run "fresh_logging_infrastructure" {
   command = plan
   variables {

@@ -33,24 +33,6 @@ variable "zones" {
   }))
 }
 
-variable "v1_database_network" {
-  description = "Existing v1 database network; null leaves peering and database access unmanaged."
-  type = object({
-    vpc_id                     = string
-    route_table_ids            = set(string)
-    mysql_security_group_id    = string
-    postgres_security_group_id = string
-  })
-  default = null
-
-  validation {
-    condition = var.v1_database_network == null ? true : (
-      length(var.v1_database_network.route_table_ids) > 0
-    )
-    error_message = "Provide the route tables actually used by the v1 database subnets."
-  }
-}
-
 variable "environment" {
   type = string
 }

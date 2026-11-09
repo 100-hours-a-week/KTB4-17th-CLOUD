@@ -9,7 +9,7 @@ terraform {
 /**
  * Shared V1 VPC
  *
- * dev가 네트워크를 소유하되 운영 모니터링과 Lambda도 사용하므로 삭제를 막는다.
+ * V1 개발 자원·GPU와 중지된 복구 원본이 남아 있어 네트워크 삭제를 막는다.
  */
 resource "aws_vpc" "main" {
   cidr_block                           = "10.0.0.0/16"

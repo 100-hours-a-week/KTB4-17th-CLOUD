@@ -40,38 +40,6 @@ locals {
 }
 
 /**
- * Loki access
- *
- * Lambda 송신과 Loki 수신을 함께 허용하고 기존 Loki 보안 그룹의 다른 규칙은 유지한다.
- */
-resource "aws_security_group" "forwarder" {
-  name        = var.name
-  description = "CloudWatch log forwarder: outbound only to private Loki"
-  vpc_id      = var.vpc_id
-  tags        = local.tags
-}
-
-resource "aws_vpc_security_group_egress_rule" "to_loki" {
-  security_group_id            = aws_security_group.forwarder.id
-  referenced_security_group_id = var.loki_security_group_id
-  ip_protocol                  = "tcp"
-  from_port                    = 3100
-  to_port                      = 3100
-  description                  = "Lambda-promtail to Loki HTTP only"
-  tags                         = local.tags
-}
-
-resource "aws_vpc_security_group_ingress_rule" "loki_from_forwarder" {
-  security_group_id            = var.loki_security_group_id
-  referenced_security_group_id = aws_security_group.forwarder.id
-  ip_protocol                  = "tcp"
-  from_port                    = 3100
-  to_port                      = 3100
-  description                  = "CloudWatch Lambda log forwarder"
-  tags                         = local.tags
-}
-
-/**
  * Forwarder logs
  *
  * 전달 함수 자체의 실행 로그를 보관한다.

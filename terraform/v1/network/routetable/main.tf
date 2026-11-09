@@ -14,7 +14,7 @@ variable "subnet_ids" { type = map(string) }
 /**
  * Shared V1 routing tables
  *
- * inline route는 지정하지 않는다. prod 소유 경로 2개와 외부 peering 경로를 보존한다.
+ * V2 피어링 경로는 제거했다. inline route를 생략해 이 루트 밖의 경로를 덮어쓰지 않는다.
  */
 resource "aws_route_table" "public" {
   vpc_id = var.vpc_id

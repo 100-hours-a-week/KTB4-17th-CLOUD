@@ -1,3 +1,13 @@
+output "monitoring" {
+  description = "Terraform-owned V2 monitoring instance and automatically assigned addresses."
+  value = {
+    instance_id       = module.monitoring.instance_id
+    private_ip        = module.monitoring.private_ip
+    public_ip         = module.monitoring.public_ip
+    security_group_id = module.monitoring.security_group_id
+  }
+}
+
 output "function_name" {
   value = module.cloudwatch_loki.function_name
 }

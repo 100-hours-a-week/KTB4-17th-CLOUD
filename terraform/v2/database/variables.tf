@@ -57,13 +57,3 @@ variable "ai_security_group_id" {
 variable "environment" {
   type = string
 }
-
-variable "v1_database_network" {
-  type    = object({ mysql_security_group_id = string, postgres_security_group_id = string })
-  default = null
-}
-
-variable "v1_database_peering_connection_id" {
-  type    = string
-  default = null
-}

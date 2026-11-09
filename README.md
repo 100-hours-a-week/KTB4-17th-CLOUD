@@ -9,7 +9,7 @@ Terraform 실행자용 추가 권한 템플릿은 [bootstrap/iam](bootstrap/iam/
 | [`terraform/common`](terraform/common/README.md) | `common/terraform.tfstate` | 공통 CloudFront·S3·ECR |
 | [`terraform/v1`](terraform/v1/README.md) | `dev/terraform.tfstate` | 기존 V1 EC2·네트워크 |
 | [`terraform/v2`](terraform/v2/README.md) | `prod/terraform.tfstate` | V2 네트워크·ALB·ECS·DB·IAM |
-| [`terraform/v2/cloudwatch`](terraform/v2/cloudwatch/README.md) | `prod/cloudwatch-loki/terraform.tfstate` | 로그 전달 인프라 |
+| [`terraform/v2/cloudwatch`](terraform/v2/cloudwatch/README.md) | `prod/cloudwatch-loki/terraform.tfstate` | V2 모니터링 EC2·SG·로그 전달 인프라 |
 
 폴더 이름을 바꾼 V1·V2는 기존 backend key를 유지한다. V3를 추가할 때도 공통 자원은 다시 생성하지 않고 common 출력을 참조한다.
 
@@ -25,7 +25,7 @@ Task definition도 AWS 리소스지만 사용자가 정한 경계에 따라 CI/C
 
 ## 완료한 state 소유권 이관
 
-2026-11-09 계정과 리전을 확인하고, 원격 state 백업·네 곳의 잠금·원본 version 대조를 거쳐 아래 내용을 반영했다. 실제 인프라 설정은 변경하지 않았다.
+2026-11-09 계정과 리전을 확인하고, 원격 state 백업·네 곳의 잠금·원본 version 대조를 거쳐 아래 내용을 반영했다. 이 state 소유권 이관 자체에서는 실제 인프라 설정을 변경하지 않았다.
 
 - CloudFront 1개, S3 2개, ECR 2개를 prod state에서 common state로 이동했다.
 - V1 네트워크 9개를 기존 ID로 dev state에 편입했다.
@@ -36,16 +36,22 @@ Task definition도 AWS 리소스지만 사용자가 정한 경계에 따라 CI/C
 
 운영 입력은 [V2 계약](terraform/v2/README.md)에 맞춰 저장소 밖에 보관한다. 현재 task revision과 SSM/Secret/KMS의 ARN만 전달하며 Terraform으로 실제 설정값을 읽지 않는다. 이관 시 확인한 V2의 기존 설정 차이 6건은 적용하지 않았다. RDS 백업 기간, WS 헬스체크, public subnet의 Kubernetes 태그, WS IAM 정책 차이는 별도로 검토한다.
 
+## 완료한 운영 모니터링 이전
+
+2026-11-09 기존 데이터를 보존한 private AMI로 V2 모니터링 EC2를 생성했다. Loki·Prometheus·Grafana 데이터를 최종 동기화하고 외부 Lambda의 VPC·수신 목적지를 V2로 전환했다. 사용자 DNS 변경과 HTTPS·실제 로그 구독·과거 데이터·메트릭 두 수집 주기를 확인했다. V1 피어링·양방향 경로·교차 SG 규칙과 옛 Lambda SG는 제거했고 기존 EC2는 종료하지 않고 중지했다. V1 개발 자원과 복구 AMI·볼륨은 보존한다.
+
+운영 재실행 입력과 확인 순서는 [모니터링 안내](terraform/v2/cloudwatch/README.md)를 따른다. 프로그램 설정·데이터 동기화·Lambda 배포는 이번 이전의 운영 작업이며 Terraform 코드에는 포함하지 않는다.
+
 ## 새로운 환경의 단계별 bootstrap
 
-운영 기존 상태에 bootstrap 플래그를 적용하지 않는다. 아래는 앞으로의 작업 순서 계약이며 이번 작업에서 실행하지 않았다.
+운영 기존 상태에 bootstrap 플래그를 적용하지 않는다. 아래는 새 환경을 위한 순서이며, 기존 운영 환경에는 해당 플래그를 적용하지 않았다.
 
-1. 새 prod backend와 인증서/기존 네트워크 참조를 준비하고 `services_enabled=false`로 전체 인프라를 생성한다. WS를 쓸 경우 `ws_infrastructure.enabled=true`를 이 단계부터 유지해 IAM·로그를 먼저 만든다. ALB route/target group은 스위치와 무관하게 기존 구조로 유지한다. 서비스와 task definition은 아직 없다. `deployment_infrastructure` 출력으로 cluster·namespace·subnet·execution/task role·로그·ECR·Secret 컨테이너 ARN을 전달한다.
+1. 새 버전별 backend와 인증서 참조를 준비하고 `services_enabled=false`로 전체 인프라를 생성한다. WS를 쓸 경우 `ws_infrastructure.enabled=true`를 이 단계부터 유지해 IAM·로그를 먼저 만든다. ALB route/target group은 스위치와 무관하게 기존 구조로 유지한다. 서비스와 task definition은 아직 없다. `deployment_infrastructure` 출력으로 cluster·namespace·subnet·execution/task role·로그·ECR·Secret 컨테이너 ARN을 전달한다.
 2. 기존 외부 배포 도구가 이미지 게시, SSM 값과 Secret 실제 값 발행, task definition 등록을 수행한다. 출력의 역할·로그 그룹을 사용하고 아래 서비스별 포트 계약을 충족한다. Terraform 입력에는 실제 값이나 환경 map을 넣지 않는다.
 3. 등록한 세 task ARN을 `task_definition_arns`에 전달하고 `services_enabled=true`로 shell을 생성한다. disabled WS는 ARN이 없어도 된다. 모든 shell의 초기 `desired_count=0`이므로 Terraform은 앱을 시작하지 않는다. 이후 외부 배포가 AI→BE/WS 준비 순서로 task revision과 실행 수를 설정하고 readiness를 확인한다. 이후 revision/실행 수는 CI/CD에서 계속 관리한다.
 4. 독립 로그 루트는 [로그 bootstrap](terraform/v2/cloudwatch/README.md) 순서로 인프라→외부 Lambda 생성→구독 연결을 진행한다. 빈 ZIP·더미 이미지·provisioner는 없다.
 
-BE: 컨테이너 `be`, 포트 8080, ALB health `/actuator/health`. WS: `ws`, 포트/port mapping 이름 `ws` 8080, 같은 ALB health. AI: `ai`, `ai-http` 포트 8000, Service Connect `ai`, HTTP health `/health`, 요청 timeout 150초. 외부 task는 Fargate/awsvpc와 이 이름·포트를 충족해야 한다. container health 명령, 로그 `awslogs` 설정과 runtime 내용은 배포 저장소가 관리한다.
+BE: 컨테이너 `be`, 포트 8080, ALB health `/actuator/health`. WS: `ws`, 포트/port mapping 이름 `ws` 8080, 코드의 ALB health `/actuator/health`(현재 운영은 `/actuator/health/service`이며 기존 차이로 미적용). AI: `ai`, `ai-http` 포트 8000, Service Connect `ai`, HTTP health `/health`, 요청 timeout 150초. 외부 task는 Fargate/awsvpc와 이 이름·포트를 충족해야 한다. container health 명령, 로그 `awslogs` 설정과 runtime 내용은 배포 저장소가 관리한다.
 
 ## 검증
 
@@ -55,9 +61,10 @@ terraform -chdir=terraform/common init -input=false -lockfile=readonly
 terraform -chdir=terraform/common validate
 terraform -chdir=terraform/v1 test
 terraform -chdir=terraform/v2 test
+terraform -chdir=terraform/v2/cloudwatch test
 ```
 
-각 실행 루트는 최초 실행 시 해당 디렉터리에서 init을 수행한다. HCL 테스트는 mock provider의 plan으로 외부 참조와 선택적 구성 경로를 검증한다. 실제 환경의 drift와 권한은 별도 읽기 전용 plan으로 확인한다. 이관에서는 common·V1 및 기존 로그 전달 구성의 무변경 계획과 모든 유지 대상 ID를 확인했다. V2 전체 plan에는 위에 적은 기존 설정 차이가 남아 있어 전체 apply는 실행하지 않았다.
+각 실행 루트는 최초 실행 시 해당 디렉터리에서 init을 수행한다. HCL 테스트는 mock provider의 plan으로 외부 참조와 선택적 구성 경로를 검증한다. 실제 환경의 drift와 권한은 별도 읽기 전용 plan으로 확인한다. 이관에서는 common·V1 및 이전 후 모니터링 루트의 무변경 계획과 모든 유지 대상 ID를 확인했다. V2 전체 plan에는 위에 적은 기존 설정 차이가 남아 있어 전체 apply는 실행하지 않았다.
 
 Terraform 요구사항은 >=1.11.0, AWS provider는 ~>6.0 / lock **6.71.0**을 유지한다. 실제 state·plan·비밀값·패키지는 저장소에 넣지 않는다. 원격 state 백업과 이관 작업 파일은 저장소 밖 권한 제한 경로에 보관했다.
 

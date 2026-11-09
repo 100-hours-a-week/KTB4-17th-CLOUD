@@ -1,3 +1,8 @@
+variable "monitoring_security_group_id" {
+  type    = string
+  default = null
+}
+
 variable "name_prefix" {
   description = "Existing AWS resource name prefix."
   type        = string

@@ -37,13 +37,13 @@ output "postgres_security_group_id" {
 }
 
 output "be_rule_ids" {
-  value = concat([aws_vpc_security_group_ingress_rule.mysql_from_app.id, aws_vpc_security_group_ingress_rule.postgres_from_app.id], aws_vpc_security_group_ingress_rule.v1_mysql_from_be[*].id)
+  value = [aws_vpc_security_group_ingress_rule.mysql_from_app.id, aws_vpc_security_group_ingress_rule.postgres_from_app.id]
 }
 
 output "ws_rule_ids" {
-  value = concat([aws_vpc_security_group_ingress_rule.mysql_from_ws.id], aws_vpc_security_group_ingress_rule.v1_mysql_from_ws[*].id)
+  value = [aws_vpc_security_group_ingress_rule.mysql_from_ws.id]
 }
 
 output "ai_rule_ids" {
-  value = concat([aws_vpc_security_group_ingress_rule.postgres_from_ai.id], aws_vpc_security_group_ingress_rule.v1_postgres_from_ai[*].id)
+  value = [aws_vpc_security_group_ingress_rule.postgres_from_ai.id]
 }

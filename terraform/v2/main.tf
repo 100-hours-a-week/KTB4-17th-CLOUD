@@ -4,13 +4,12 @@
 module "network" {
   source = "./network"
 
-  name_prefix         = local.name_prefix
-  vpc_cidr            = local.vpc_cidr
-  nat_gateway_zone    = local.nat_gateway_zone
-  vpc_version         = local.version
-  zones               = local.zones
-  v1_database_network = var.v1_database_network
-  environment         = local.environment
+  name_prefix      = local.name_prefix
+  vpc_cidr         = local.vpc_cidr
+  nat_gateway_zone = local.nat_gateway_zone
+  vpc_version      = local.version
+  zones            = local.zones
+  environment      = local.environment
 }
 
 /**
@@ -36,13 +35,11 @@ module "alb" {
  * Databases
  */
 module "database" {
-  be_security_group_id              = module.be.security_group_id
-  ws_security_group_id              = module.ws.security_group_id
-  ai_security_group_id              = module.ai.security_group_id
-  environment                       = local.environment
-  v1_database_network               = var.v1_database_network
-  v1_database_peering_connection_id = module.network.v1_database_peering_connection_id
-  source                            = "./database"
+  be_security_group_id = module.be.security_group_id
+  ws_security_group_id = module.ws.security_group_id
+  ai_security_group_id = module.ai.security_group_id
+  environment          = local.environment
+  source               = "./database"
 
   name_prefix     = local.name_prefix
   vpc_version     = local.version
@@ -87,23 +84,24 @@ module "ai" {
  * BE service
  */
 module "be" {
-  alb_security_group_id  = module.alb.alb_security_group_id
-  services_enabled       = var.services_enabled
-  task_definition_arn    = var.task_definition_arns.be
-  source                 = "./ecs/service/be"
-  name_prefix            = local.name_prefix
-  environment            = local.environment
-  cluster_id             = module.cluster.id
-  namespace_arn          = module.cluster.namespace_arn
-  subnet_ids             = module.network.application_subnet_ids
-  vpc_id                 = module.network.vpc_id
-  be_target_group_arn    = module.alb.be_target_group_arn
-  image_bucket_arn       = data.terraform_remote_state.common.outputs.image_bucket_arn
-  be_secrets             = var.be_access.secrets
-  be_parameter_arns      = var.be_access.parameter_arns
-  be_secret_kms_key_arns = var.be_access.kms_key_arns
-  ai_service_name        = module.ai.service_name
-  traffic_rule_ids       = concat(module.alb.egress_rule_ids, module.database.be_rule_ids, module.ai.ingress_rule_ids)
+  monitoring_security_group_id = var.monitoring_security_group_id
+  alb_security_group_id        = module.alb.alb_security_group_id
+  services_enabled             = var.services_enabled
+  task_definition_arn          = var.task_definition_arns.be
+  source                       = "./ecs/service/be"
+  name_prefix                  = local.name_prefix
+  environment                  = local.environment
+  cluster_id                   = module.cluster.id
+  namespace_arn                = module.cluster.namespace_arn
+  subnet_ids                   = module.network.application_subnet_ids
+  vpc_id                       = module.network.vpc_id
+  be_target_group_arn          = module.alb.be_target_group_arn
+  image_bucket_arn             = data.terraform_remote_state.common.outputs.image_bucket_arn
+  be_secrets                   = var.be_access.secrets
+  be_parameter_arns            = var.be_access.parameter_arns
+  be_secret_kms_key_arns       = var.be_access.kms_key_arns
+  ai_service_name              = module.ai.service_name
+  traffic_rule_ids             = concat(module.alb.egress_rule_ids, module.database.be_rule_ids, module.ai.ingress_rule_ids)
 
 }
 
@@ -111,24 +109,25 @@ module "be" {
  * WS service
  */
 module "ws" {
-  alb_security_group_id     = module.alb.alb_security_group_id
-  services_enabled          = var.services_enabled
-  task_definition_arn       = var.task_definition_arns.ws
-  source                    = "./ecs/service/ws"
-  name_prefix               = local.name_prefix
-  environment               = local.environment
-  cluster_id                = module.cluster.id
-  namespace_arn             = module.cluster.namespace_arn
-  subnet_ids                = module.network.application_subnet_ids
-  vpc_id                    = module.network.vpc_id
-  backend_config_references = module.be.config_references
-  backend_kms_key_arns      = var.be_access.kms_key_arns
-  ws_target_group_arn       = module.alb.ws_target_group_arn
-  image_bucket_arn          = data.terraform_remote_state.common.outputs.image_bucket_arn
-  ws_enabled                = var.ws_infrastructure.enabled
-  ws_use_backend_config     = var.ws_infrastructure.use_backend_config
-  ws_secrets                = var.ws_access.secrets
-  ws_secret_kms_key_arns    = var.ws_access.kms_key_arns
-  traffic_rule_ids          = concat(module.alb.egress_rule_ids, module.database.ws_rule_ids, module.ai.ingress_rule_ids)
+  monitoring_security_group_id = var.monitoring_security_group_id
+  alb_security_group_id        = module.alb.alb_security_group_id
+  services_enabled             = var.services_enabled
+  task_definition_arn          = var.task_definition_arns.ws
+  source                       = "./ecs/service/ws"
+  name_prefix                  = local.name_prefix
+  environment                  = local.environment
+  cluster_id                   = module.cluster.id
+  namespace_arn                = module.cluster.namespace_arn
+  subnet_ids                   = module.network.application_subnet_ids
+  vpc_id                       = module.network.vpc_id
+  backend_config_references    = module.be.config_references
+  backend_kms_key_arns         = var.be_access.kms_key_arns
+  ws_target_group_arn          = module.alb.ws_target_group_arn
+  image_bucket_arn             = data.terraform_remote_state.common.outputs.image_bucket_arn
+  ws_enabled                   = var.ws_infrastructure.enabled
+  ws_use_backend_config        = var.ws_infrastructure.use_backend_config
+  ws_secrets                   = var.ws_access.secrets
+  ws_secret_kms_key_arns       = var.ws_access.kms_key_arns
+  traffic_rule_ids             = concat(module.alb.egress_rule_ids, module.database.ws_rule_ids, module.ai.ingress_rule_ids)
 
 }

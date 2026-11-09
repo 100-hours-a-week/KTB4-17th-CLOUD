@@ -11,8 +11,9 @@ variable "name" {
 
 variable "vpc_id" {
   type        = string
-  description = "VPC containing both the Lambda subnet(s) and the existing Loki security group."
+  description = "V2 VPC containing both the Lambda subnet(s) and the monitoring security group."
 }
+
 
 variable "subnet_ids" {
   type        = list(string)
@@ -26,7 +27,7 @@ variable "subnet_ids" {
 
 variable "loki_security_group_id" {
   type        = string
-  description = "Existing Loki EC2 security group. Only one additional ingress rule is managed."
+  description = "Monitoring SG used as the Lambda egress destination; the monitoring module owns Loki ingress."
 }
 
 variable "log_groups" {

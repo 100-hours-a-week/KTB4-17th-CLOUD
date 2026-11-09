@@ -26,3 +26,17 @@ resource "aws_vpc_security_group_ingress_rule" "ws_from_alb" {
     environment = var.environment
   }
 }
+
+/**
+ * Monitoring scrape
+ */
+resource "aws_vpc_security_group_ingress_rule" "metrics_from_monitoring" {
+  count                        = var.monitoring_security_group_id == null ? 0 : 1
+  security_group_id            = aws_security_group.service.id
+  referenced_security_group_id = var.monitoring_security_group_id
+  ip_protocol                  = "tcp"
+  from_port                    = local.ws_port
+  to_port                      = local.ws_port
+  description                  = "Prometheus scrape from V2 monitoring"
+  tags                         = { Name = "${var.name_prefix}-ws-from-monitoring", environment = var.environment }
+}

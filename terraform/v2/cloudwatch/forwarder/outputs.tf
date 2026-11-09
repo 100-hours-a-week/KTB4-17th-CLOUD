@@ -7,11 +7,7 @@ output "function_arn" {
 }
 
 output "security_group_id" {
-  value = aws_security_group.forwarder.id
-}
-
-output "loki_ingress_rule_id" {
-  value = aws_vpc_security_group_ingress_rule.loki_from_forwarder.id
+  value = aws_security_group.forwarder_v2.id
 }
 
 output "lambda_log_group_name" {
@@ -32,7 +28,7 @@ output "deployment_infrastructure" {
     function_arn           = local.function_arn
     execution_role_arn     = aws_iam_role.forwarder.arn
     subnet_ids             = var.subnet_ids
-    security_group_ids     = [aws_security_group.forwarder.id]
+    security_group_ids     = [aws_security_group.forwarder_v2.id]
     log_group_name         = aws_cloudwatch_log_group.forwarder.name
     dead_letter_target_arn = try(aws_sqs_queue.failed_events[0].arn, null)
   }
