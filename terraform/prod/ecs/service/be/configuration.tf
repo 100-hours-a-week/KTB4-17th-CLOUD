@@ -3,23 +3,6 @@ locals {
   health_check_path = "/actuator/health"
 }
 
-# BE의 일반 설정은 SSM, 비밀값은 Secrets Manager로 주입한다.
-
-resource "aws_ssm_parameter" "be_config" {
-  for_each = var.be_environment
-
-  name        = "/${var.name_prefix}/${var.environment}/be/${each.key}"
-  description = "Production backend config: ${each.key}"
-  type        = "String"
-  tier        = "Standard"
-  value       = each.value
-
-  tags = {
-    Name        = "${var.name_prefix}-${var.environment}-be-${each.key}"
-    environment = var.environment
-  }
-}
-
 resource "aws_secretsmanager_secret" "be" {
   name                    = "${var.name_prefix}/${var.environment}/be"
   description             = "Production backend credentials and authentication secrets"
@@ -31,36 +14,15 @@ resource "aws_secretsmanager_secret" "be" {
   }
 }
 
-resource "aws_secretsmanager_secret_version" "be" {
-  secret_id                = aws_secretsmanager_secret.be.id
-  secret_string_wo         = jsonencode(merge(var.be_secret_values, var.ai_secret_values))
-  secret_string_wo_version = var.be_secret_version
-
-  lifecycle {
-    create_before_destroy = true
-  }
+removed {
+  from = aws_ssm_parameter.be_config
+  lifecycle { destroy = false }
 }
-
+removed {
+  from = aws_secretsmanager_secret_version.be
+  lifecycle { destroy = false }
+}
 locals {
-  be_secret_environment_names = [
-    "DB_PASSWORD",
-    "JWT_SECRET",
-    "CLIENT_SECRET",
-    "AI_PRACTICE_API_KEY",
-    "AI_PRACTICE_CALLBACK_SECRET"
-  ]
-
-  # 기존 Secrets Manager ARN을 be_secrets로 지정하면 해당 항목을 외부 Secret으로 대체한다.
-  be_secret_references = merge(
-    {
-      for name in local.be_secret_environment_names :
-      name => "${aws_secretsmanager_secret.be.arn}:${name}::"
-    },
-    var.be_secrets
-  )
-
-  be_environment_references = merge(
-    { for name, parameter in aws_ssm_parameter.be_config : name => parameter.arn },
-    local.be_secret_references
-  )
+  be_secret_references      = merge({ container = aws_secretsmanager_secret.be.arn }, var.be_secrets)
+  be_environment_references = merge(var.be_parameter_arns, local.be_secret_references)
 }

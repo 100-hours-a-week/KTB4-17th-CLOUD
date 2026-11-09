@@ -5,7 +5,7 @@ output "alb_dns_name" {
 
 output "ecs_service_names" {
   description = "Service names used by each application's CI/CD deployment"
-  value       = merge({ be = module.be.service_name, ai = module.ai.service_name }, var.ws_deployment.enabled ? { ws = module.ws.service_name } : {})
+  value       = merge({ be = module.be.service_name, ai = module.ai.service_name }, var.ws_infrastructure.enabled ? { ws = module.ws.service_name } : {})
 }
 
 output "ai_internal_url" {
@@ -36,4 +36,19 @@ output "postgres_address" {
 output "postgres_master_user_secret_arn" {
   description = "Secrets Manager secret holding the PostgreSQL master credentials"
   value       = module.database.postgres_master_user_secret_arn
+}
+
+output "deployment_infrastructure" {
+  description = "Infra-only contract for externally registered task definitions; contains no secret values."
+  value = {
+    cluster_id        = module.cluster.id
+    namespace_arn     = module.cluster.namespace_arn
+    subnet_ids        = module.network.application_subnet_ids
+    be                = module.be.deployment_infrastructure
+    ai                = module.ai.deployment_infrastructure
+    ws                = module.ws.deployment_infrastructure
+    config_references = module.be.config_references
+    be_repository_url = module.storage.be_repository_url
+    ai_repository_url = module.storage.ai_repository_url
+  }
 }

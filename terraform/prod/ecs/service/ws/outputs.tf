@@ -13,3 +13,11 @@ output "health_check_path" {
   description = "Service-owned fixed configuration; independent of service readiness."
   value       = local.ws_health_check_path
 }
+
+output "deployment_infrastructure" {
+  value = {
+    execution_role_arn = try(aws_iam_role.service_execution["ws"].arn, null)
+    task_role_arn      = try(aws_iam_role.service_task["ws"].arn, null)
+    log_group_name     = try(aws_cloudwatch_log_group.service[0].name, null)
+  }
+}

@@ -6,77 +6,20 @@ terraform {
   }
 }
 
-resource "aws_ecs_task_definition" "ws" {
-  count = var.ws_enabled ? 1 : 0
-
-  family                   = "${var.name_prefix}-ws"
-  requires_compatibilities = ["FARGATE"]
-  network_mode             = "awsvpc"
-  cpu                      = "1024"
-  memory                   = "2048"
-  execution_role_arn       = aws_iam_role.service_execution["ws"].arn
-  task_role_arn            = aws_iam_role.service_task["ws"].arn
-
-  runtime_platform {
-    operating_system_family = "LINUX"
-    cpu_architecture        = var.ws_cpu_architecture
-  }
-
-  container_definitions = jsonencode([{
-    name           = "ws"
-    image          = var.ws_image_uri
-    essential      = true
-    mountPoints    = []
-    systemControls = []
-    volumesFrom    = []
-
-    logConfiguration = {
-      logDriver = "awslogs"
-      options = {
-        "awslogs-group"         = aws_cloudwatch_log_group.service[0].name
-        "awslogs-region"        = data.aws_region.current.region
-        "awslogs-stream-prefix" = "ecs"
-      }
-    }
-
-    portMappings = [{
-      name          = "ws"
-      containerPort = local.ws_port
-      hostPort      = local.ws_port
-      protocol      = "tcp"
-    }]
-
-    environment = [
-      for name, value in var.ws_environment : {
-        name  = name
-        value = value
-      }
-    ]
-    secrets = [
-      for name, value_from in local.ws_secret_references : {
-        name      = name
-        valueFrom = value_from
-      }
-    ]
-  }])
-
-  tags = {
-    Name        = "${var.name_prefix}-ws-task"
-    environment = var.environment
-  }
-
-  depends_on = [aws_iam_role_policy_attachment.service_execution, aws_iam_role_policy.service_execution_secrets, aws_iam_role_policy.service_execution_secret_kms, aws_iam_role_policy.ws_s3]
+removed {
+  from = aws_ecs_task_definition.ws
+  lifecycle { destroy = false }
 }
 
 resource "aws_ecs_service" "ws" {
-  count = var.ws_enabled ? 1 : 0
+  count = var.ws_enabled && var.services_enabled ? 1 : 0
 
   name                  = "${var.name_prefix}-ws-service"
   cluster               = var.cluster_id
-  task_definition       = aws_ecs_task_definition.ws[0].arn
+  task_definition       = var.task_definition_arn
   launch_type           = "FARGATE"
   platform_version      = "LATEST"
-  desired_count         = var.ws_desired_count
+  desired_count         = 0
   propagate_tags        = "SERVICE"
   wait_for_steady_state = true
 
@@ -120,6 +63,11 @@ resource "aws_ecs_service" "ws" {
   depends_on = [aws_vpc_security_group_egress_rule.outbound, var.traffic_rule_ids]
 
   lifecycle {
-    ignore_changes = [task_definition]
+    ignore_changes  = [task_definition, desired_count]
+    prevent_destroy = true
+    precondition {
+      condition     = var.task_definition_arn != null
+      error_message = "Supply an externally registered task definition ARN before creating service shells."
+    }
   }
 }

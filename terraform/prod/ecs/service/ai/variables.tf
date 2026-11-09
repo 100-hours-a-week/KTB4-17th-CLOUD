@@ -23,46 +23,8 @@ variable "vpc_id" {
   type        = string
 }
 
-variable "ai_repository_url" {
-  description = "AI ECR repository URL"
-  type        = string
-}
-variable "ai_image_tag" {
-  description = "Existing star23/ai image tag used for initial ECS creation; later deployments are managed by CI/CD"
-  type        = string
-
-  validation {
-    condition     = can(regex("^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$", var.ai_image_tag))
-    error_message = "ai_image_tag must be a valid, non-empty ECR image tag."
-  }
-}
-variable "ai_cpu_architecture" {
-  description = "AI image CPU architecture: X86_64 or ARM64"
-  type        = string
-  default     = "X86_64"
-
-  validation {
-    condition     = contains(["X86_64", "ARM64"], var.ai_cpu_architecture)
-    error_message = "ai_cpu_architecture must be X86_64 or ARM64."
-  }
-}
-variable "ai_desired_count" {
-  description = "AI Fargate task count"
-  type        = number
-  default     = 2
-
-  validation {
-    condition     = var.ai_desired_count >= 0 && floor(var.ai_desired_count) == var.ai_desired_count
-    error_message = "ai_desired_count must be a non-negative integer."
-  }
-}
-variable "ai_environment" {
-  description = "AI non-sensitive environment variables"
-  type        = map(string)
-  default     = {}
-}
 variable "ai_secrets" {
-  description = "AI environment variable names mapped to existing Secrets Manager or SSM parameter ARNs"
+  description = "ARN-only AI execution permission references; keys do not generate environment contents"
   type        = map(string)
   default     = {}
 
@@ -79,9 +41,13 @@ variable "ai_secret_kms_key_arns" {
   description = "Customer-managed KMS key ARNs encrypting the referenced AI secrets, if any"
   type        = set(string)
   default     = []
+  validation {
+    condition     = alltrue([for arn in var.ai_secret_kms_key_arns : can(regex("^arn:aws:kms:[^:]+:[0-9]{12}:key/.+$", arn))])
+    error_message = "Supply customer-managed KMS key ARNs only."
+  }
 }
 variable "ai_additional_execution_secret_arns" {
-  description = "Existing Secrets Manager grants used by CI-managed AI task revisions beyond the Terraform bootstrap definition."
+  description = "Existing Secrets Manager grants used by CI-managed AI task revisions owned by external deployment."
   type        = set(string)
   default     = []
 
@@ -94,13 +60,23 @@ variable "ai_additional_execution_secret_arns" {
   }
 }
 
-variable "backend_config_references" {
-  description = "Shared config ARN references; the BE output also waits for its Secret version."
-  type        = map(string)
-}
-
 variable "traffic_rule_ids" {
   description = "Root-owned traffic rule completion tokens, consumed only by the ECS service."
   type        = list(string)
   default     = []
+}
+
+variable "services_enabled" {
+  description = "Create service shells only after external task registration. False is for fresh infrastructure only."
+  type        = bool
+  default     = true
+}
+variable "task_definition_arn" {
+  description = "Externally registered task ARN; used only when creating the zero-task service shell."
+  type        = string
+  default     = null
+  validation {
+    condition     = var.task_definition_arn == null ? true : can(regex("^arn:aws:ecs:[^:]+:[0-9]{12}:task-definition/[^:]+:[0-9]+$", var.task_definition_arn))
+    error_message = "Supply a full ECS task definition ARN including revision."
+  }
 }

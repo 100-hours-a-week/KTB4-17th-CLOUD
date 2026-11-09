@@ -1,4 +1,3 @@
-data "aws_region" "current" {}
 
 resource "aws_cloudwatch_log_group" "service" {
 

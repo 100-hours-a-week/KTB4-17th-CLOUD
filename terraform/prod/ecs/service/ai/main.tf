@@ -6,81 +6,24 @@ terraform {
   }
 }
 
-resource "aws_ecs_task_definition" "ai" {
-  family                   = "${var.name_prefix}-ai"
-  requires_compatibilities = ["FARGATE"]
-  network_mode             = "awsvpc"
-  cpu                      = "1024"
-  memory                   = "2048"
-  execution_role_arn       = aws_iam_role.service_execution["ai"].arn
-  task_role_arn            = aws_iam_role.service_task["ai"].arn
+removed {
+  from = aws_ecs_task_definition.ai
+  lifecycle { destroy = false }
+}
 
-  runtime_platform {
-    operating_system_family = "LINUX"
-    cpu_architecture        = var.ai_cpu_architecture
-  }
-
-  container_definitions = jsonencode([{
-    name      = "ai"
-    image     = "${var.ai_repository_url}:${var.ai_image_tag}"
-    essential = true
-
-    logConfiguration = {
-      logDriver = "awslogs"
-      options = {
-        "awslogs-group"         = aws_cloudwatch_log_group.service[0].name
-        "awslogs-region"        = data.aws_region.current.region
-        "awslogs-stream-prefix" = "ecs"
-      }
-    }
-
-    portMappings = [{
-      name          = "ai-http"
-      containerPort = local.ai_port
-      protocol      = "tcp"
-      appProtocol   = "http"
-    }]
-
-    environment = [
-      for name, value in var.ai_environment : {
-        name  = name
-        value = value
-      }
-    ]
-    secrets = [
-      for name, value_from in var.ai_secrets : {
-        name      = name
-        valueFrom = value_from
-      }
-    ]
-
-    # ALB를 사용하지 않는 AI도 준비 상태를 검사한다. FastAPI 이미지에 python3가 필요하다.
-    healthCheck = {
-      command = [
-        "CMD", "python3", "-c",
-        "import urllib.request; r = urllib.request.urlopen(${jsonencode("http://127.0.0.1:${local.ai_port}${local.ai_health_check_path}")}, timeout=2); raise SystemExit(0 if r.status == 200 else 1)"
-      ]
-      interval    = 30
-      timeout     = 5
-      retries     = 3
-      startPeriod = 120
-    }
-  }])
-
-  tags = {
-    Name        = "${var.name_prefix}-ai-task"
-    environment = var.environment
-  }
-  depends_on = [aws_iam_role_policy_attachment.service_execution, aws_iam_role_policy.service_execution_secrets, aws_iam_role_policy.service_execution_secret_kms, var.backend_config_references]
+moved {
+  from = aws_ecs_service.ai
+  to   = aws_ecs_service.ai[0]
 }
 
 resource "aws_ecs_service" "ai" {
+  count                 = var.services_enabled ? 1 : 0
   name                  = "${var.name_prefix}-ai-service"
   cluster               = var.cluster_id
-  task_definition       = aws_ecs_task_definition.ai.arn
+  task_definition       = var.task_definition_arn
   launch_type           = "FARGATE"
   platform_version      = "LATEST"
-  desired_count         = var.ai_desired_count
+  desired_count         = 0
   propagate_tags        = "SERVICE"
   wait_for_steady_state = true
 
@@ -129,6 +72,11 @@ resource "aws_ecs_service" "ai" {
   depends_on = [aws_vpc_security_group_egress_rule.outbound, var.traffic_rule_ids]
 
   lifecycle {
-    ignore_changes = [task_definition]
+    ignore_changes  = [task_definition, desired_count]
+    prevent_destroy = true
+    precondition {
+      condition     = var.task_definition_arn != null
+      error_message = "Supply an externally registered task definition ARN before creating service shells."
+    }
   }
 }

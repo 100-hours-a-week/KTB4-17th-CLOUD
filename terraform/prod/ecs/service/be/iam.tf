@@ -43,10 +43,10 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = concat(
-      length(var.be_environment) > 0 ? [{
+      length(var.be_parameter_arns) > 0 ? [{
         Effect   = "Allow"
         Action   = ["ssm:GetParameters"]
-        Resource = [for parameter in aws_ssm_parameter.be_config : parameter.arn]
+        Resource = values(var.be_parameter_arns)
       }] : [],
       [{
         Effect = "Allow"

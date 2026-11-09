@@ -28,12 +28,6 @@ variable "ws_port" {
   type        = number
 }
 
-variable "ws_enabled" {
-  description = "Forward WebSocket paths to a standalone service instead of the backend."
-  type        = bool
-  default     = false
-}
-
 variable "ws_health_check_path" {
   description = "WebSocket health check path."
   type        = string

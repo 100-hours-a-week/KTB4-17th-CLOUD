@@ -27,60 +27,9 @@ variable "be_target_group_arn" {
   description = "Backend target group attached to the ALB listeners"
   type        = string
 }
-variable "be_repository_url" {
-  description = "Backend ECR repository URL"
-  type        = string
-}
 variable "image_bucket_arn" {
   description = "S3 bucket ARN for backend file operations"
   type        = string
-}
-variable "be_image_tag" {
-  description = "Existing backend git SHA tag used for initial ECS creation; subsequent deployments are managed by CI/CD"
-  type        = string
-
-  validation {
-    condition     = can(regex("^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$", var.be_image_tag))
-    error_message = "be_image_tag must be a valid, non-empty ECR image tag."
-  }
-}
-variable "be_cpu_architecture" {
-  description = "CPU architecture matching the backend image: X86_64 or ARM64"
-  type        = string
-  default     = "X86_64"
-
-  validation {
-    condition     = contains(["X86_64", "ARM64"], var.be_cpu_architecture)
-    error_message = "be_cpu_architecture must be X86_64 or ARM64."
-  }
-}
-variable "be_desired_count" {
-  description = "Number of backend Fargate tasks"
-  type        = number
-  default     = 2
-
-  validation {
-    condition     = var.be_desired_count >= 0 && floor(var.be_desired_count) == var.be_desired_count
-    error_message = "be_desired_count must be a non-negative integer."
-  }
-}
-variable "be_environment" {
-  description = "Non-sensitive backend config values to create as SSM String parameters and inject into ECS"
-  type        = map(string)
-  default     = {}
-
-  validation {
-    condition     = alltrue([for value in values(var.be_environment) : length(value) > 0])
-    error_message = "SSM String config values cannot be empty. Fill the production DB_URL and DB_USERNAME before applying."
-  }
-
-  validation {
-    condition = alltrue([
-      for name in keys(var.be_environment) :
-      !contains(["DB_PASSWORD", "JWT_SECRET", "CLIENT_SECRET", "AI_PRACTICE_API_KEY", "AI_PRACTICE_CALLBACK_SECRET"], name)
-    ])
-    error_message = "Secret values must be supplied through be_secret_values or existing Secrets Manager ARNs, not be_environment."
-  }
 }
 variable "be_secrets" {
   description = "Optional existing Secrets Manager ARN references that override individual backend JSON secret items"
@@ -95,58 +44,17 @@ variable "be_secrets" {
     error_message = "be_secrets values must be full Secrets Manager ARNs, optionally with JSON key/version selectors."
   }
 }
-variable "be_secret_values" {
-  description = "Runtime-only backend secret values; do not put these values in tracked tfvars files"
-  type = object({
-    DB_PASSWORD                 = optional(string, "")
-    JWT_SECRET                  = string
-    CLIENT_SECRET               = string
-    AI_PRACTICE_API_KEY         = optional(string, "")
-    AI_PRACTICE_CALLBACK_SECRET = optional(string, "")
-  })
-  sensitive = true
-  ephemeral = true
-
-  validation {
-    condition     = length(var.be_secret_values.JWT_SECRET) > 0 && length(var.be_secret_values.CLIENT_SECRET) > 0
-    error_message = "JWT_SECRET and CLIENT_SECRET must be provided as non-empty runtime secret inputs."
-  }
-
-  validation {
-    condition     = length(var.be_secret_values.DB_PASSWORD) > 0 || contains(keys(var.be_secrets), "DB_PASSWORD")
-    error_message = "Provide the production DB_PASSWORD at runtime, or reference an existing Secrets Manager ARN in be_secrets."
-  }
-}
-variable "be_secret_version" {
-  description = "Increase this integer when updating the backend secret values"
-  type        = number
-  default     = 1
-
-  validation {
-    condition     = var.be_secret_version >= 1 && floor(var.be_secret_version) == var.be_secret_version
-    error_message = "be_secret_version must be a positive integer."
-  }
-}
 variable "be_secret_kms_key_arns" {
   description = "Customer-managed KMS key ARNs used to encrypt the referenced backend secrets, if any"
   type        = set(string)
   default     = []
-}
-variable "ai_secret_values" {
-  description = "Runtime-only AI secrets stored as AI_* fields alongside backend secrets; never put values in tfvars."
-  type        = map(string)
-  default     = {}
-  sensitive   = true
-  ephemeral   = true
-
   validation {
-    condition     = alltrue([for name in keys(var.ai_secret_values) : startswith(name, "AI_")])
-    error_message = "AI runtime secret keys must start with AI_ to avoid overwriting backend credentials."
+    condition     = alltrue([for arn in var.be_secret_kms_key_arns : can(regex("^arn:aws:kms:[^:]+:[0-9]{12}:key/.+$", arn))])
+    error_message = "Supply customer-managed KMS key ARNs only."
   }
 }
-
 variable "ai_service_name" {
-  description = "AI service output, available after its healthy steady state; gates only the BE service."
+  description = "AI service shell readiness; gates only BE shell creation, application readiness belongs to CI/CD."
   type        = string
 }
 
@@ -154,4 +62,29 @@ variable "traffic_rule_ids" {
   description = "Root-owned traffic rule completion tokens, consumed only by the ECS service."
   type        = list(string)
   default     = []
+}
+
+variable "services_enabled" {
+  description = "Create service shells only after external task registration. False is for fresh infrastructure only."
+  type        = bool
+  default     = true
+}
+variable "task_definition_arn" {
+  description = "Externally registered task ARN; used only when creating the zero-task service shell."
+  type        = string
+  default     = null
+  validation {
+    condition     = var.task_definition_arn == null ? true : can(regex("^arn:aws:ecs:[^:]+:[0-9]{12}:task-definition/[^:]+:[0-9]+$", var.task_definition_arn))
+    error_message = "Supply a full ECS task definition ARN including revision."
+  }
+}
+
+variable "be_parameter_arns" {
+  description = "External SSM parameter ARN references only; no parameter values are read or managed."
+  type        = map(string)
+  default     = {}
+  validation {
+    condition     = alltrue([for arn in values(var.be_parameter_arns) : can(regex("^arn:aws:ssm:[^:]+:[0-9]{12}:parameter/.+$", arn))])
+    error_message = "Only full SSM parameter ARNs are accepted."
+  }
 }

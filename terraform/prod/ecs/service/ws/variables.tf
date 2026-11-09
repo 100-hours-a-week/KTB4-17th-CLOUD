@@ -23,7 +23,7 @@ variable "vpc_id" {
   type        = string
 }
 variable "backend_config_references" {
-  description = "ARN references exported by the single backend configuration owner."
+  description = "ARN-only shared configuration permissions exported by BE infrastructure."
   type        = map(string)
 }
 variable "backend_kms_key_arns" {
@@ -49,43 +49,8 @@ variable "ws_use_backend_config" {
   type        = bool
   default     = false
 }
-variable "ws_image_uri" {
-  description = "Full WebSocket image URI with an existing tag or sha256 digest for initial ECS creation"
-  type        = string
-  default     = ""
-
-  validation {
-    condition     = !var.ws_enabled || can(regex("^[A-Za-z0-9.-]+(:[0-9]+)?/[A-Za-z0-9._/-]+(:[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}|@sha256:[a-fA-F0-9]{64})$", var.ws_image_uri))
-    error_message = "When ws_enabled is true, ws_image_uri must include a registry, repository, and tag or sha256 digest."
-  }
-}
-variable "ws_cpu_architecture" {
-  description = "WebSocket image CPU architecture: X86_64 or ARM64"
-  type        = string
-  default     = "X86_64"
-
-  validation {
-    condition     = contains(["X86_64", "ARM64"], var.ws_cpu_architecture)
-    error_message = "ws_cpu_architecture must be X86_64 or ARM64."
-  }
-}
-variable "ws_desired_count" {
-  description = "WebSocket Fargate task count"
-  type        = number
-  default     = 2
-
-  validation {
-    condition     = var.ws_desired_count >= 0 && floor(var.ws_desired_count) == var.ws_desired_count
-    error_message = "ws_desired_count must be a non-negative integer."
-  }
-}
-variable "ws_environment" {
-  description = "WebSocket non-sensitive environment variables"
-  type        = map(string)
-  default     = {}
-}
 variable "ws_secrets" {
-  description = "WebSocket environment variable names mapped to existing Secrets Manager or SSM parameter ARNs"
+  description = "ARN-only WS execution permission references; keys do not generate environment contents"
   type        = map(string)
   default     = {}
 
@@ -102,10 +67,29 @@ variable "ws_secret_kms_key_arns" {
   description = "Customer-managed KMS key ARNs encrypting the referenced WebSocket secrets, if any"
   type        = set(string)
   default     = []
+  validation {
+    condition     = alltrue([for arn in var.ws_secret_kms_key_arns : can(regex("^arn:aws:kms:[^:]+:[0-9]{12}:key/.+$", arn))])
+    error_message = "Supply customer-managed KMS key ARNs only."
+  }
 }
 
 variable "traffic_rule_ids" {
   description = "Root-owned traffic rule completion tokens, consumed only by the ECS service."
   type        = list(string)
   default     = []
+}
+
+variable "services_enabled" {
+  description = "Create service shells only after external task registration. False is for fresh infrastructure only."
+  type        = bool
+  default     = true
+}
+variable "task_definition_arn" {
+  description = "Externally registered task ARN; used only when creating the zero-task service shell."
+  type        = string
+  default     = null
+  validation {
+    condition     = var.task_definition_arn == null ? true : can(regex("^arn:aws:ecs:[^:]+:[0-9]{12}:task-definition/[^:]+:[0-9]+$", var.task_definition_arn))
+    error_message = "Supply a full ECS task definition ARN including revision."
+  }
 }
