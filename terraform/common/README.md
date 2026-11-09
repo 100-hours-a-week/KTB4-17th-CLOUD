@@ -11,8 +11,6 @@ V1·V2·V3가 함께 사용하는 CloudFront 1개, S3 버킷 2개, ECR 저장소
 
 버전별 루트는 공통 자원을 다시 선언하지 않고 이 state의 출력을 참조한다. V2의 `common.tf`는 이미지 버킷 ARN과 ECR URL을 읽으며 기존 `deployment_infrastructure` 출력 계약을 유지한다. 프런트 배포는 `frontend_bucket_name`, `cloudfront_distribution_id`를 사용할 수 있다. 다른 출력은 `image_bucket_name`, `image_bucket_arn`, `be_repository_url`, `ai_repository_url`이다.
 
-2026-11-09 기존 prod state에서 공통 자원 5개의 소유권을 이 state로 옮겼다. 실제 자원은 생성·수정·삭제하지 않았고 ID를 유지했다. 읽기 전용 계획에서 발견된 기존 `v3.star23sharp.com` 도메인과 WS 라우팅 함수 연결도 코드에 보존했다. 이관 완료 후 일회성 이관 선언은 남기지 않는다.
-
 ```sh
 terraform -chdir=terraform/common init -input=false -lockfile=readonly
 terraform -chdir=terraform/common validate

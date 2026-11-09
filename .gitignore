@@ -1,5 +1,4 @@
 .idea/
-.ouroboros/
 **/.terraform/
 **/*.tfvars
 **/*.tfvars.json
@@ -8,5 +7,3 @@
 **/*.tfplan
 **/crash.log
 **/crash.*.log
-terraform/cloud-map-terraform-policy.json
-**/__pycache__/
