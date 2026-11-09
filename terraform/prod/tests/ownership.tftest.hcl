@@ -7,6 +7,7 @@ mock_provider "aws" {
     defaults = { json = "{\"Version\":\"2012-10-17\",\"Statement\":[]}" }
   }
   mock_data "aws_region" { defaults = { region = "ap-northeast-2" } }
+  mock_data "aws_vpc" { defaults = { cidr_block = "172.31.0.0/16" } }
 }
 variables {
   acm_certificate_arn = "arn:aws:acm:ap-northeast-2:975779326240:certificate/11111111-1111-1111-1111-111111111111"
@@ -91,7 +92,7 @@ run "v1_database_network" {
   }
   assert {
     condition     = length(module.database.be_rule_ids) == 3 && length(module.database.ws_rule_ids) == 2 && length(module.database.ai_rule_ids) == 2
-    error_message = "Optional V1 access must preserve BE/true MySQL and AI PostgreSQL only."
+    error_message = "Optional V1 access must preserve BE/WS MySQL and AI PostgreSQL only."
   }
 }
 
@@ -109,6 +110,6 @@ run "v1_network_ws_disabled" {
   }
   assert {
     condition     = length(module.database.be_rule_ids) == 3 && length(module.database.ws_rule_ids) == 2 && length(module.database.ai_rule_ids) == 2
-    error_message = "Optional V1 access must preserve BE/false MySQL and AI PostgreSQL only."
+    error_message = "Disabling WS services must preserve existing BE/WS MySQL and AI PostgreSQL rules."
   }
 }

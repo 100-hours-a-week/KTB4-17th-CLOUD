@@ -3,6 +3,10 @@ mock_provider "aws" {}
 run "managed_shared_v1_network" {
   command = plan
 
+  providers = {
+    aws = aws
+  }
+
   # import는 실제 기존 state를 사용하는 별도 계획에서 검증한다.
   # 이 테스트는 편입 파일 없이 네트워크 모듈의 연결 계약을 검증한다.
   module {
