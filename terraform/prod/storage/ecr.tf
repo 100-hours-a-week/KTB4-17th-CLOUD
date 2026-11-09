@@ -8,6 +8,9 @@ terraform {
 
 # 컨테이너 이미지 저장소. 이미지 빌드와 push는 CI가 담당한다.
 
+/**
+ * AI image repository
+ */
 resource "aws_ecr_repository" "ai" {
   force_delete         = null
   image_tag_mutability = "MUTABLE"
@@ -23,6 +26,9 @@ resource "aws_ecr_repository" "ai" {
   }
 }
 
+/**
+ * BE image repository
+ */
 resource "aws_ecr_repository" "be" {
   force_delete         = null
   image_tag_mutability = "IMMUTABLE"

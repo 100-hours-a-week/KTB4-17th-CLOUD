@@ -1,3 +1,8 @@
+/**
+ * VPC peering
+ *
+ * V1 데이터베이스 VPC와 연결하고 양쪽 라우팅 테이블에 왕복 경로를 추가한다.
+ */
 locals {
   v1_database_peers = var.v1_database_network == null ? {} : {
     v1 = var.v1_database_network

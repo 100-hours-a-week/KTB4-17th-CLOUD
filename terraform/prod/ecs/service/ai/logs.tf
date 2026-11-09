@@ -1,3 +1,6 @@
+/**
+ * AI logs
+ */
 resource "aws_cloudwatch_log_group" "service" {
   count             = true ? 1 : 0
   name              = "/ecs/${var.name_prefix}/${var.environment}/ai"

@@ -16,6 +16,11 @@ moved {
   to   = aws_ecs_service.be[0]
 }
 
+/**
+ * BE service
+ *
+ * 외부 태스크 리비전을 연결하며, 실행 수와 후속 배포는 CI/CD가 관리한다.
+ */
 resource "aws_ecs_service" "be" {
   count                 = var.services_enabled ? 1 : 0
   name                  = "${var.name_prefix}-be-service"

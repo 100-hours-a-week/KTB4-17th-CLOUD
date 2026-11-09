@@ -1,4 +1,8 @@
-# 새 VPC의 data subnet에 PostgreSQL을 둔다. 앱 subnet과 분리되고 외부 경로가 없다.
+/**
+ * PostgreSQL database
+ *
+ * 앱과 분리된 data 서브넷 그룹과 DB 인스턴스를 함께 구성한다.
+ */
 resource "aws_db_subnet_group" "postgres" {
   name        = "${var.name_prefix}-${var.vpc_version}-prod-postgres-data"
   description = "Private data subnets for the new production PostgreSQL instance"

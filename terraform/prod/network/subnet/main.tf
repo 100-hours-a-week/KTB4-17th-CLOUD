@@ -6,6 +6,9 @@ terraform {
   }
 }
 
+/**
+ * Public subnet
+ */
 resource "aws_subnet" "public" {
   for_each = var.zones
 
@@ -19,6 +22,9 @@ resource "aws_subnet" "public" {
   }
 }
 
+/**
+ * Application subnet
+ */
 resource "aws_subnet" "application" {
   for_each = var.zones
 
@@ -32,6 +38,9 @@ resource "aws_subnet" "application" {
   }
 }
 
+/**
+ * Data subnet
+ */
 resource "aws_subnet" "data" {
   for_each = var.zones
 

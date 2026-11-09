@@ -6,6 +6,9 @@ terraform {
   }
 }
 
+/**
+ * Application load balancer
+ */
 resource "aws_alb" "main" {
   name               = "${var.name_prefix}-alb"
   internal           = false

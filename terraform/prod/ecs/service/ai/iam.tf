@@ -1,3 +1,6 @@
+/**
+ * AI task trust
+ */
 data "aws_iam_policy_document" "ecs_tasks_assume_role" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -9,6 +12,11 @@ data "aws_iam_policy_document" "ecs_tasks_assume_role" {
   }
 }
 
+/**
+ * AI execution role
+ *
+ * ECS가 이미지 다운로드와 로그 전송에 사용하는 역할이다.
+ */
 resource "aws_iam_role" "service_execution" {
   for_each = local.additional_ecs_services
 
@@ -28,6 +36,11 @@ resource "aws_iam_role_policy_attachment" "service_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+/**
+ * AI task role
+ *
+ * 컨테이너 안의 애플리케이션이 AWS API를 호출할 때 사용하는 역할이다.
+ */
 resource "aws_iam_role" "service_task" {
   for_each = local.additional_ecs_services
 
@@ -40,6 +53,11 @@ resource "aws_iam_role" "service_task" {
   }
 }
 
+/**
+ * AI secret access
+ *
+ * Secret·SSM ARN으로 읽기 권한을 제한하며, Terraform은 실제 값을 조회하지 않는다.
+ */
 resource "aws_iam_role_policy" "service_execution_secrets" {
   for_each = {
     for name, settings in local.additional_ecs_services : name => settings
@@ -76,6 +94,11 @@ resource "aws_iam_role_policy" "service_execution_secrets" {
   })
 }
 
+/**
+ * AI secret decryption
+ *
+ * 지정한 KMS 키로 암호화된 시크릿을 읽는 데 필요한 복호화 권한이다.
+ */
 resource "aws_iam_role_policy" "service_execution_secret_kms" {
   for_each = {
     for name, settings in local.additional_ecs_services : name => settings

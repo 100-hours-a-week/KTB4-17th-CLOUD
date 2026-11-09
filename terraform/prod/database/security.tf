@@ -1,3 +1,6 @@
+/**
+ * MySQL security group
+ */
 resource "aws_security_group" "mysql" {
   vpc_id = var.vpc_id
 
@@ -6,6 +9,9 @@ resource "aws_security_group" "mysql" {
   tags        = { Name = "v2-rds-mysql" }
 }
 
+/**
+ * PostgreSQL security group
+ */
 resource "aws_security_group" "postgres" {
   vpc_id = var.vpc_id
 

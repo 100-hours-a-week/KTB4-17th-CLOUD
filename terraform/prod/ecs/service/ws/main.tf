@@ -11,6 +11,11 @@ removed {
   lifecycle { destroy = false }
 }
 
+/**
+ * WS service
+ *
+ * 외부 태스크 리비전을 연결하며, 실행 수와 후속 배포는 CI/CD가 관리한다.
+ */
 resource "aws_ecs_service" "ws" {
   count = var.ws_enabled && var.services_enabled ? 1 : 0
 

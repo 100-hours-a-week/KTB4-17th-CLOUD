@@ -6,15 +6,26 @@ terraform {
   }
 }
 
+/**
+ * AWS context
+ */
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 data "aws_partition" "current" {}
 
+/**
+ * Source log groups
+ *
+ * ECS에서 관리하는 로그 그룹을 조회해 구독 대상으로 사용한다.
+ */
 data "aws_cloudwatch_log_group" "source" {
   for_each = var.log_groups
   name     = each.value
 }
 
+/**
+ * Forwarder settings
+ */
 locals {
   function_arn = "arn:${data.aws_partition.current.partition}:lambda:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:function:${var.name}"
   tags         = merge(var.tags, { Name = var.name, environment = "prod" })
@@ -28,6 +39,11 @@ locals {
   ]
 }
 
+/**
+ * Loki access
+ *
+ * Lambda 송신과 Loki 수신을 함께 허용하고 기존 Loki 보안 그룹의 다른 규칙은 유지한다.
+ */
 resource "aws_security_group" "forwarder" {
   name        = var.name
   description = "CloudWatch log forwarder: outbound only to private Loki"
@@ -45,7 +61,6 @@ resource "aws_vpc_security_group_egress_rule" "to_loki" {
   tags                         = local.tags
 }
 
-# A separate rule preserves the existing Loki group's other rules.
 resource "aws_vpc_security_group_ingress_rule" "loki_from_forwarder" {
   security_group_id            = var.loki_security_group_id
   referenced_security_group_id = aws_security_group.forwarder.id
@@ -56,12 +71,22 @@ resource "aws_vpc_security_group_ingress_rule" "loki_from_forwarder" {
   tags                         = local.tags
 }
 
+/**
+ * Forwarder logs
+ *
+ * 전달 함수 자체의 실행 로그를 보관한다.
+ */
 resource "aws_cloudwatch_log_group" "forwarder" {
   name              = "/aws/lambda/${var.name}"
   retention_in_days = var.lambda_log_retention_days
   tags              = local.tags
 }
 
+/**
+ * Failure queue
+ *
+ * DLQ를 켠 경우 실패한 비동기 호출 이벤트를 보관할 큐를 만든다.
+ */
 resource "aws_sqs_queue" "failed_events" {
   count = var.enable_dlq ? 1 : 0
 
@@ -71,6 +96,11 @@ resource "aws_sqs_queue" "failed_events" {
   tags                      = local.tags
 }
 
+/**
+ * Execution role
+ *
+ * Lambda 서비스가 이 역할을 맡을 수 있도록 신뢰 정책을 연결한다.
+ */
 data "aws_iam_policy_document" "assume_role" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -88,6 +118,11 @@ resource "aws_iam_role" "forwarder" {
   tags               = local.tags
 }
 
+/**
+ * Execution permissions
+ *
+ * 실행 역할에 로그 기록·VPC 인터페이스 관리·선택적 DLQ 전송 권한을 연결한다.
+ */
 data "aws_iam_policy_document" "execution" {
   statement {
     sid       = "WriteOwnLogStreams"
@@ -149,6 +184,11 @@ moved {
   to   = aws_lambda_function_event_invoke_config.forwarder[0]
 }
 
+/**
+ * External function connections
+ *
+ * 외부 Lambda의 호출 권한과 재시도 설정이 준비된 뒤 로그 구독을 연결한다.
+ */
 resource "aws_lambda_function_event_invoke_config" "forwarder" {
   count                        = var.enable_function_connections ? 1 : 0
   function_name                = var.name

@@ -1,3 +1,6 @@
+/**
+ * BE task trust
+ */
 data "aws_iam_policy_document" "ecs_tasks_assume_role" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -9,6 +12,11 @@ data "aws_iam_policy_document" "ecs_tasks_assume_role" {
   }
 }
 
+/**
+ * BE execution role
+ *
+ * ECS가 이미지 다운로드와 로그 전송에 사용하는 역할이다.
+ */
 resource "aws_iam_role" "ecs_execution" {
   name               = "${var.name_prefix}-ecs-execution-role"
   assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume_role.json
@@ -24,6 +32,11 @@ resource "aws_iam_role_policy_attachment" "ecs_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+/**
+ * BE task role
+ *
+ * 컨테이너 안의 애플리케이션이 AWS API를 호출할 때 사용하는 역할이다.
+ */
 resource "aws_iam_role" "ecs_task" {
   name               = "${var.name_prefix}-ecs-task-role"
   assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume_role.json
@@ -34,6 +47,11 @@ resource "aws_iam_role" "ecs_task" {
   }
 }
 
+/**
+ * BE secret access
+ *
+ * Secret·SSM ARN으로 읽기 권한을 제한하며, Terraform은 실제 값을 조회하지 않는다.
+ */
 resource "aws_iam_role_policy" "ecs_execution_secrets" {
   count = 1
 
@@ -61,6 +79,11 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
   })
 }
 
+/**
+ * BE secret decryption
+ *
+ * 지정한 KMS 키로 암호화된 시크릿을 읽는 데 필요한 복호화 권한이다.
+ */
 resource "aws_iam_role_policy" "ecs_execution_secret_kms" {
   count = length(var.be_secret_kms_key_arns) > 0 ? 1 : 0
 
@@ -77,6 +100,9 @@ resource "aws_iam_role_policy" "ecs_execution_secret_kms" {
   })
 }
 
+/**
+ * BE storage access
+ */
 resource "aws_iam_role_policy" "be_s3" {
   name = "${var.name_prefix}-be-s3"
   role = aws_iam_role.ecs_task.id

@@ -1,3 +1,6 @@
+/**
+ * AI security group
+ */
 resource "aws_security_group" "service" {
   name        = "${var.name_prefix}-ai-sg"
   description = "Security group for the ai ECS service"

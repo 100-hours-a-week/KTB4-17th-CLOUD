@@ -1,3 +1,6 @@
+/**
+ * Network
+ */
 module "network" {
   source = "./network"
 
@@ -10,6 +13,9 @@ module "network" {
   environment         = local.environment
 }
 
+/**
+ * Application load balancer
+ */
 module "alb" {
   source = "./alb"
 
@@ -23,6 +29,9 @@ module "alb" {
   acm_certificate_arn  = var.acm_certificate_arn
 }
 
+/**
+ * Databases
+ */
 module "database" {
   source = "./database"
 
@@ -34,22 +43,34 @@ module "database" {
   postgres_port   = local.postgres_port
 }
 
+/**
+ * Storage
+ */
 module "storage" {
   source = "./storage"
 }
 
+/**
+ * CDN
+ */
 module "cdn" {
   source = "./cdn"
 
   name_prefix = local.name_prefix
 }
 
+/**
+ * ECS cluster
+ */
 module "cluster" {
   source      = "./ecs/cluster"
   name_prefix = local.name_prefix
   environment = local.environment
 }
 
+/**
+ * AI service
+ */
 module "ai" {
   services_enabled                    = var.services_enabled
   task_definition_arn                 = var.task_definition_arns.ai
@@ -75,6 +96,9 @@ module "ai" {
 
 }
 
+/**
+ * BE service
+ */
 module "be" {
   services_enabled       = var.services_enabled
   task_definition_arn    = var.task_definition_arns.be
@@ -105,6 +129,9 @@ module "be" {
 
 }
 
+/**
+ * WS service
+ */
 module "ws" {
   services_enabled          = var.services_enabled
   task_definition_arn       = var.task_definition_arns.ws

@@ -1,4 +1,8 @@
-# Cross-owner SG edges live here to avoid service/network/ALB dependency cycles.
+/**
+ * Connection settings
+ *
+ * 서비스·네트워크·ALB 사이의 순환 의존성을 피하도록 교차 SG 규칙을 여기에서 연결한다.
+ */
 locals {
   additional_ecs_services            = { ws = { database_access = var.ws_database_access }, ai = { database_access = var.ai_database_access } }
   database_client_security_group_ids = { be = module.be.security_group_id, ws = module.ws.security_group_id, ai = module.ai.security_group_id }
@@ -6,6 +10,11 @@ locals {
   v1_database_security_group_ids     = var.v1_database_network == null ? {} : { v1 = { mysql = var.v1_database_network.mysql_security_group_id, postgres = var.v1_database_network.postgres_security_group_id } }
 }
 
+/**
+ * ALB to backend
+ *
+ * ALB 송신과 백엔드 수신 규칙을 한 쌍으로 연결한다.
+ */
 resource "aws_vpc_security_group_egress_rule" "alb_to_app" {
   security_group_id = module.alb.alb_security_group_id
 
@@ -32,6 +41,11 @@ resource "aws_vpc_security_group_ingress_rule" "app_from_alb" {
   }
 }
 
+/**
+ * Backend database access
+ *
+ * 백엔드 SG에서 MySQL·PostgreSQL로 들어오는 연결을 허용한다.
+ */
 resource "aws_vpc_security_group_ingress_rule" "mysql_from_app" {
   security_group_id = module.database.mysql_security_group_id
 
@@ -58,6 +72,11 @@ resource "aws_vpc_security_group_ingress_rule" "postgres_from_app" {
   }
 }
 
+/**
+ * ALB to websocket
+ *
+ * ALB 송신과 웹소켓 서비스 수신 규칙을 한 쌍으로 연결한다.
+ */
 resource "aws_vpc_security_group_ingress_rule" "ws_from_alb" {
   security_group_id            = module.ws.security_group_id
   referenced_security_group_id = module.alb.alb_security_group_id
@@ -84,6 +103,9 @@ resource "aws_vpc_security_group_egress_rule" "alb_to_ws" {
   }
 }
 
+/**
+ * Backend to AI
+ */
 resource "aws_vpc_security_group_ingress_rule" "ai_from_be" {
   security_group_id            = module.ai.security_group_id
   referenced_security_group_id = module.be.security_group_id
@@ -97,6 +119,11 @@ resource "aws_vpc_security_group_ingress_rule" "ai_from_be" {
   }
 }
 
+/**
+ * Additional database access
+ *
+ * WS·AI의 DB 접근 목록을 DB별 수신 규칙으로 펼친다.
+ */
 locals {
   additional_ecs_database_rules = {
     for rule in flatten([
@@ -137,6 +164,9 @@ resource "aws_vpc_security_group_ingress_rule" "additional_ecs_database" {
   }
 }
 
+/**
+ * Websocket to AI
+ */
 resource "aws_vpc_security_group_ingress_rule" "ai_from_ws" {
   security_group_id            = module.ai.security_group_id
   referenced_security_group_id = module.ws.security_group_id
@@ -151,6 +181,11 @@ resource "aws_vpc_security_group_ingress_rule" "ai_from_ws" {
   }
 }
 
+/**
+ * Legacy database access
+ *
+ * V1 DB 네트워크가 연결된 경우에만 ECS 서비스의 접근을 허용한다.
+ */
 resource "aws_vpc_security_group_ingress_rule" "v1_database_from_ecs" {
   for_each = local.v1_database_ingress_rules
 

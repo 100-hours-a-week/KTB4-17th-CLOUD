@@ -1,3 +1,8 @@
+/**
+ * ALB security group
+ *
+ * 보안 그룹과 HTTP·HTTPS 인바운드 규칙을 함께 구성한다.
+ */
 resource "aws_security_group" "alb" {
   vpc_id = var.vpc_id
 

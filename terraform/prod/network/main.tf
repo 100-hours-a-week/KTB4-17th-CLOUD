@@ -6,18 +6,29 @@ terraform {
   }
 }
 
+/**
+ * VPC
+ */
 module "vpc" {
   source      = "./vpc"
   name_prefix = var.name_prefix
   vpc_cidr    = var.vpc_cidr
   vpc_version = var.vpc_version
 }
+
+/**
+ * Subnets
+ */
 module "subnet" {
   source      = "./subnet"
   name_prefix = var.name_prefix
   zones       = var.zones
   vpc_id      = module.vpc.id
 }
+
+/**
+ * Routing tables
+ */
 module "routetable" {
   source                 = "./routetable"
   name_prefix            = var.name_prefix

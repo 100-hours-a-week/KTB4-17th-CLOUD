@@ -6,7 +6,11 @@ terraform {
   }
 }
 
-# 기존 CloudFront와 외부 WAF·Function·OAC·인증서 연결을 유지한다.
+/**
+ * CloudFront distribution
+ *
+ * 기존 WAF·Function·OAC·인증서 연결을 유지한다.
+ */
 
 resource "aws_cloudfront_distribution" "fe" {
   aliases             = ["star23sharp.com", "dev.star23sharp.com", "api.star23sharp.com", "grafana.star23sharp.com", "stag.star23sharp.com"]

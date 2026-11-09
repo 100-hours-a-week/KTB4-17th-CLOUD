@@ -1,4 +1,7 @@
 
+/**
+ * BE logs
+ */
 resource "aws_cloudwatch_log_group" "service" {
 
   name              = "/ecs/${var.name_prefix}/${var.environment}/be"

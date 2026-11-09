@@ -1,3 +1,6 @@
+/**
+ * API target group
+ */
 resource "aws_lb_target_group" "api" {
   vpc_id = var.vpc_id
 
@@ -23,6 +26,9 @@ resource "aws_lb_target_group" "api" {
   }
 }
 
+/**
+ * WS target group
+ */
 resource "aws_lb_target_group" "ws" {
   name        = "${var.name_prefix}-ws-tg"
   vpc_id      = var.vpc_id

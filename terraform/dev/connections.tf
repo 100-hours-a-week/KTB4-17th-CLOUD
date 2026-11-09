@@ -1,5 +1,9 @@
-# Shared legacy SGs and prod-owned cross-VPC grants remain external references.
-# Do not adopt their rule collections or duplicate prod-owned ingress.
+/**
+ * Existing security groups
+ *
+ * 공유 SG와 prod 소유 VPC 간 접근 규칙은 외부 참조로 유지한다.
+ * 규칙 전체를 편입하거나 prod 소유 ingress를 중복 생성하지 않는다.
+ */
 locals {
   existing_security_group_ids = {
     ssh  = "sg-0208d71a531ef25b9"

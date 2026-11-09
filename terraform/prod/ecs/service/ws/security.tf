@@ -1,3 +1,6 @@
+/**
+ * WS security group
+ */
 resource "aws_security_group" "service" {
   name        = "${var.name_prefix}-ws-sg"
   description = "Security group for the ws ECS service"
