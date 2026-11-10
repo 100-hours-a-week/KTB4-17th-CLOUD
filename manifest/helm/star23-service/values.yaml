@@ -1,3 +1,7 @@
+# star-EKS-v3의 현재 배포를 기준으로 한 기본값입니다 (2026-11-10).
+# 역할마다 이미지·포트·설정이 다르므로 values/<릴리스>.yaml 하나를 함께 지정합니다.
+# 예: helm template user-api ./manifest/helm/star23-service -n user \
+#       -f ./manifest/helm/star23-service/values/user-api.yaml
 nameOverride: ""
 replicaCount: 1
 
@@ -13,7 +17,7 @@ args: []
 containerPort: 8080
 service:
   enabled: true
-  port: 80
+  port: 8080
 
 labels:
   component: api-server
@@ -30,24 +34,25 @@ resources:
     cpu: "2"
     memory: 4Gi
 
-nodeSelector: {}
+nodeSelector:
+  workload-class: general
 tolerations: []
 affinity: {}
 
 configMap:
-  enabled: false
+  enabled: true
   data: {}
 
 env: []
 envFrom: []
 serviceAccountName: ""
 serviceAccount:
-  create: false
+  create: true
 
 # Requires External Secrets Operator and Pod Identity on its controller ServiceAccount.
 # Secrets Manager values are never stored in this chart.
 externalSecret:
-  enabled: false
+  enabled: true
   region: ap-northeast-2
   refreshInterval: 1h
   parameterStoreEnabled: false
@@ -55,13 +60,13 @@ externalSecret:
 
 probes:
   readiness:
-    enabled: false
+    enabled: true
     path: /actuator/health
     initialDelaySeconds: 10
   liveness:
-    enabled: false
+    enabled: true
     path: /actuator/health
-    initialDelaySeconds: 30
+    initialDelaySeconds: 180
 
 ingress:
   enabled: false

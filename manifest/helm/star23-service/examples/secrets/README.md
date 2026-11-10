@@ -1,5 +1,7 @@
 # Secrets Manager → EKS Pod environment variables
 
+현재 배포에 필요한 Secret 참조는 [values/](../../values/README.md)의 역할 파일에 통합했다. 이 디렉터리의 Secret 오버레이를 추가로 적용하지 않는다. 아래 IAM·ESO 설치 자료는 기존 연동을 이해하고 재구성하기 위한 참고 자료다.
+
 No secret values are stored here. `backend.values.yaml`, `websocket.values.yaml`, and `ai.values.yaml` contain only Secrets Manager ARNs, SSM parameter paths, and JSON property names. Existing ECS task definitions `star23-be:21`, `star23-ws:8`, and `star23-ai:18` were used to verify the key mapping.
 
 ## Current status
@@ -17,10 +19,10 @@ Example commands from the CLOUD repository root (these change AWS/EKS only when 
 
 ```sh
 aws iam create-role --role-name star23-v3-external-secrets \
-  --assume-role-policy-document file://helm/star23-service/examples/secrets/eso-pod-identity-trust.json
+  --assume-role-policy-document file://manifest/helm/star23-service/examples/secrets/eso-pod-identity-trust.json
 aws iam put-role-policy --role-name star23-v3-external-secrets \
   --policy-name star23-v3-read-secrets \
-  --policy-document file://helm/star23-service/examples/secrets/eso-read-secrets-policy.json
+  --policy-document file://manifest/helm/star23-service/examples/secrets/eso-read-secrets-policy.json
 helm repo add external-secrets https://charts.external-secrets.io
 helm repo update external-secrets
 helm upgrade --install external-secrets external-secrets/external-secrets \
@@ -35,16 +37,14 @@ aws eks create-pod-identity-association --region ap-northeast-2 \
 The Secrets Manager IAM policy grants access to whole secret objects, not selected JSON properties. The ESO controller reads the shared `star23/prod/be` Secret; the BE/AI Kubernetes Secrets receive only their explicitly mapped properties.
 
 3. Confirm v3 is meant to use the existing production RDS before deploying. The mappings now reference the existing `DB_PASSWORD` and `AI_DATABASE_URL` properties; no new DB Secret is needed for this shared-DB plan. Never commit secret **values**.
-4. Add the appropriate secret overlay after each base and role values file: `examples/secrets/backend.values.yaml` for BE Spring roles, `examples/secrets/websocket.values.yaml` for `chat-socket`, and `examples/secrets/ai.values.yaml` for FastAPI. The chart creates one namespaced Secrets Manager `SecretStore`, optionally one Parameter Store `SecretStore`, one `ExternalSecret`, and a Pod `envFrom.secretRef` per release. ESO, not the application Pod, uses Pod Identity to read Secrets Manager.
+4. Use one current role values file from `values/`. It already contains the corresponding BE, WebSocket, or AI Secret mappings; do not layer the old secret overlay on top. The chart creates one namespaced Secrets Manager `SecretStore`, optionally one Parameter Store `SecretStore`, one `ExternalSecret`, and a Pod `envFrom.secretRef` per release. ESO, not the application Pod, uses Pod Identity to read Secrets Manager.
 5. Check `kubectl get externalsecret -n <namespace>` for `Ready=True` and verify the generated Kubernetes Secret exists without printing its data. Because this chart creates the ExternalSecret and Deployment together, the Pod may wait briefly for the Secret on first install; confirm sync before judging application health.
 
 Example (render only; requires the Helm CLI):
 
 ```sh
-helm template user-api ./helm/star23-service -n user \
-  -f ./helm/star23-service/examples/backend.values.yaml \
-  -f ./helm/star23-service/examples/services/user-api.values.yaml \
-  -f ./helm/star23-service/examples/secrets/backend.values.yaml
+helm template user-api ./manifest/helm/star23-service -n user \
+  -f ./manifest/helm/star23-service/values/user-api.yaml
 ```
 
 ## v3 hostname and login

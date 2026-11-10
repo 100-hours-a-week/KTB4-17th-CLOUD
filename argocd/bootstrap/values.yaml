@@ -1,0 +1,16 @@
+# 공식 argo/argo-cd 차트 10.17.1 (Argo CD v3.6.1)의 설치 설정입니다.
+# 이 파일을 추가하는 것만으로 설치되지는 않습니다. 설치 명령은 ../README.md를 참고합니다.
+global:
+  nodeSelector:
+    workload-class: general
+
+configs:
+  cm:
+    # 기존 Service selector의 app.kubernetes.io/instance 라벨을 보존합니다.
+    application.resourceTrackingMethod: annotation
+
+server:
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false

@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: star23-apps
+  namespace: argocd
+spec:
+  description: STAR23 v3 application workloads on star-EKS-v3
+  sourceRepos:
+    - https://github.com/100-hours-a-week/KTB4-17th-CLOUD.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: user
+    - server: https://kubernetes.default.svc
+      namespace: chat
+    - server: https://kubernetes.default.svc
+      namespace: recommend
+    - server: https://kubernetes.default.svc
+      namespace: auth
+  # 기존 앱 Namespace만 사용합니다. CRD·ClusterRole·Namespace 생성은 별도 관리합니다.
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - group: apps
+      kind: Deployment
+    - group: apps
+      kind: ReplicaSet
+    - group: ""
+      kind: Pod
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: Endpoints
+    - group: discovery.k8s.io
+      kind: EndpointSlice
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Secret
+    - group: ""
+      kind: ServiceAccount
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: external-secrets.io
+      kind: ExternalSecret
+    - group: external-secrets.io
+      kind: SecretStore
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+    - group: policy
+      kind: PodDisruptionBudget
