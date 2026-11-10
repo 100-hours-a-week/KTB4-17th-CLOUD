@@ -26,3 +26,6 @@ configMap:
   data:
     AI_PERSONA_BASE_URL: "http://onboarding-persona-ai.user.svc.cluster.local:8000"
     AI_KAKAO_BASE_URL: "http://onboarding-persona-ai.user.svc.cluster.local:8000"
+    # The deployed BE image uses this existing variable for profile-trust AI calls.
+    # This full AI image also serves practice paths if this release invokes them.
+    AI_PRACTICE_BASE_URL: "http://image-worker.user.svc.cluster.local:8000"

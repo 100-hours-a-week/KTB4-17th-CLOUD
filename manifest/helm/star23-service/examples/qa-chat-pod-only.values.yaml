@@ -1,3 +1,4 @@
+# Apply only to chat-api; chat-socket is now enabled for the chat-room list route.
 # Apply after the chat-api or chat-socket role overlay while validating one Pod per role.
 # The current full BE image hardcodes chat-realtime-relay-v1 as its Kafka group.
 # Starting another consumer with that group would split v2 production events.
