@@ -1,0 +1,28 @@
+# Layer on examples/backend.values.yaml; this names the role-specific ClusterIP Service.
+nameOverride: onboarding-api
+service:
+  enabled: true
+  port: 8080
+ingress:
+  enabled: true
+  paths:
+    - path: "/api/v1/users/me/profile"
+      pathType: Exact
+    - path: "/api/v1/users/me/profile/images"
+      pathType: Prefix
+    - path: "/api/v1/users/me/onboarding"
+      pathType: Prefix
+    - path: "/api/v1/users/me/face-verifications"
+      pathType: Prefix
+    - path: "/api/v1/files/upload-intents/*/primary-photo-check"
+      pathType: ImplementationSpecific
+    - path: "/api/v1/persona"
+      pathType: Prefix
+    - path: "/api/v1/nicknames"
+      pathType: Prefix
+    - path: "/api/v1/activity-regions"
+      pathType: Prefix
+configMap:
+  data:
+    AI_PERSONA_BASE_URL: "http://onboarding-persona-ai.user.svc.cluster.local:8000"
+    AI_KAKAO_BASE_URL: "http://onboarding-persona-ai.user.svc.cluster.local:8000"

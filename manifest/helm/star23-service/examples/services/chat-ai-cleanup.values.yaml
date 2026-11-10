@@ -1,0 +1,16 @@
+# HTTP role overlay on examples/ai.values.yaml; runs the unchanged full application image.
+nameOverride: chat-ai-cleanup
+service:
+  enabled: true
+  port: 8000
+ingress:
+  enabled: false
+nodeSelector:
+  workload-class: general
+resources:
+  requests:
+    cpu: "500m"
+    memory: 1Gi
+  limits:
+    cpu: "1"
+    memory: 2Gi

@@ -1,0 +1,26 @@
+nameOverride: user-api
+service:
+  enabled: true
+  port: 8080
+ingress:
+  enabled: true
+  paths:
+    - path: "/api/v1/notifications"
+      pathType: Prefix
+    - path: "/api/v1/users/me/blocks"
+      pathType: Prefix
+    - path: "/api/v1/users/me"
+      pathType: Exact
+    - path: "/api/v1/users/*/profile"
+      pathType: ImplementationSpecific
+    - path: "/api/v1/registration"
+      pathType: Prefix
+    - path: "/api/v1/files"
+      pathType: Prefix
+configMap:
+  data:
+    APP_NOTIFICATION_CREATION_ENABLED: "false"
+    APP_NOTIFICATION_OUTBOX_RELAY_ENABLED: "false"
+    APP_NOTIFICATION_DELIVERY_ENABLED: "true"
+    APP_NOTIFICATION_DELIVERY_GROUP_ID_PREFIX: "v3-notification-sse-v1"
+    NOTIFICATION_DELIVERY_TOPIC: "prod-notification-delivery-v1"

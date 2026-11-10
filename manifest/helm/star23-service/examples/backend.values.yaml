@@ -1,0 +1,75 @@
+# Existing Spring Boot code and image; this release does not split domains.
+nameOverride: backend
+image:
+  repository: 975779326240.dkr.ecr.ap-northeast-2.amazonaws.com/star23/be
+  digest: sha256:d9bc7106543bdb62d424cf1e0534066a1ca14cb11169fb553cc34fbc6880f87a
+replicaCount: 1
+containerPort: 8080
+service:
+  port: 8080
+labels:
+  component: api-server
+  partOf: star23sharp
+  team: backend
+  environment: prod
+  framework: spring
+nodeSelector:
+  workload-class: general
+serviceAccount:
+  create: true
+probes:
+  readiness:
+    enabled: true
+    path: /actuator/health
+  liveness:
+    enabled: true
+    path: /actuator/health
+    initialDelaySeconds: 180
+ingress:
+  enabled: false
+  host: v3.star23sharp.com
+  path: /
+  groupName: star23-v3
+  certificateArn: arn:aws:acm:ap-northeast-2:975779326240:certificate/13083ecf-f79a-4b35-b17f-5e134d1eb6b8
+  groupOrder: 1
+  healthcheckPath: /actuator/health
+
+configMap:
+  enabled: true
+  data:
+    SPRING_PROFILES_ACTIVE: prod
+    JPA_FORMAT_SQL: "false"
+    FLYWAY_ENABLED: "true"
+    DB_URL: "jdbc:mysql://star23-v2-prod-mysql.c7wkoseo8zgf.ap-northeast-2.rds.amazonaws.com:3306/star23_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8"
+    DB_USERNAME: "star23"
+    KAFKA_BOOTSTRAP_SERVERS: "10.1.22.118:9092,10.1.22.118:9094,10.1.22.118:9095"
+    APP_FILE_ALLOWED_MIME_TYPES: "image/jpeg,image/png,image/webp"
+    APP_FILE_CLEANUP_BATCH_SIZE: "50"
+    APP_FILE_CLEANUP_DELAY_MS: "300000"
+    APP_FILE_MAX_SIZE_BYTES: "10485760"
+    APP_FILE_UPLOAD_INTENT_RETENTION: "30d"
+    APP_FILE_UPLOAD_INTENT_TTL: "15m"
+    AUTHORIZATION_URI: "https://kauth.kakao.com/oauth/authorize"
+    AUTH_ALLOWED_ORIGINS: "https://star23sharp.com,https://v3.star23sharp.com"
+    AUTH_COOKIE_SAME_SITE: "Lax"
+    AUTH_ONBOARDING_REDIRECT_URI: "https://star23sharp.com/onboarding"
+    AUTH_REGISTRATION_REDIRECT_URI: "https://star23sharp.com/registration"
+    AUTH_SERVICE_REDIRECT_URI: "https://star23sharp.com/home"
+    AWS_S3_BUCKET: "star23-images"
+    AWS_S3_DOWNLOAD_URL_EXPIRATION: "5m"
+    AWS_S3_REGION: "ap-northeast-2"
+    AWS_S3_UPLOAD_URL_EXPIRATION: "10m"
+    CLIENT_ID: "3f583bf72a7da5ecc954a04a5c291405"
+    JWT_PENDING_EXPIRATION_MINUTES: "10"
+    JWT_SERVICE_EXPIRATION_MINUTES: "15"
+    KAKAO_TALK_PROFILE_URI: "https://kapi.kakao.com/v1/api/talk/profile"
+    REDIRECT_URI: "https://star23sharp.com/api/v1/auth/kakao/callback"
+    TOKEN_URI: "https://kauth.kakao.com/oauth/token"
+    USER_INFO_URI: "https://kapi.kakao.com/v2/user/me"
+    AUTH_COOKIE_SECURE: "true"
+    AI_PRACTICE_BASE_URL: "http://chat-ai-practice.chat.svc.cluster.local:8000"
+    AI_SIMULATION_BASE_URL: "http://chat-ai-simulation.chat.svc.cluster.local:8000"
+    # The current v2 BE image ignores this variable; profile-trust still uses AI_PRACTICE_BASE_URL.
+    # Keep the intended destination here for the future BE image that reads it.
+    AI_PROFILE_TRUST_BASE_URL: "http://image-worker.user.svc.cluster.local:8000"
+    APP_RECOMMENDATION_REFRESH_ZONE: Asia/Seoul

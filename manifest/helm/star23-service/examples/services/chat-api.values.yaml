@@ -1,0 +1,17 @@
+# Layer on examples/backend.values.yaml; this names the role-specific ClusterIP Service.
+nameOverride: chat-api
+service:
+  enabled: true
+  port: 8080
+ingress:
+  enabled: false
+  paths:
+    - path: "/api/v1/chat-rooms"
+      pathType: Exact
+    - path: "/api/v1/ai-practice"
+      pathType: Prefix
+    - path: "/api/v1/ai-simulations"
+      pathType: Prefix
+configMap:
+  data:
+    APP_CHAT_RUNTIME_ENABLED: "true"
