@@ -1,4 +1,6 @@
-# Same Spring Boot image digest as backend.values.yaml; separate runtime settings only.
+# /** WebSocket example
+#  * Backend와 같은 Spring 이미지의 실행 설정만 나눈 참고값이며 역할→Secret 예제를 뒤에 합친다. 현재 배포는 values/를 사용한다.
+#  */
 nameOverride: websocket
 image:
   repository: 975779326240.dkr.ecr.ap-northeast-2.amazonaws.com/star23/be
@@ -29,6 +31,9 @@ ingress:
   groupOrder: 1
   healthcheckPath: /actuator/health
 
+# /** Shared v2 configuration
+#  * v2 RDS·Kafka·S3를 공유하며, Redis 인증 URL은 secrets/websocket.values.yaml에서 연결한다.
+#  */
 configMap:
   enabled: true
   data:

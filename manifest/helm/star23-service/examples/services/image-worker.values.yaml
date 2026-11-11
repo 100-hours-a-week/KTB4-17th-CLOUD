@@ -1,6 +1,10 @@
-# HTTP image-analysis role on the unchanged FastAPI image.
-# Select this overlay together with examples/ai.values.yaml in namespace user.
+# /** Image Worker example
+#  * ai.values.yaml 뒤에 합치는 user 네임스페이스의 HTTP 분석 예제이며, Secret은 secrets/ai.values.yaml로 연결한다.
+#  */
 nameOverride: image-worker
+# /** Image analysis service
+#  * onboarding-api가 프로필 검증에 호출하는 내부 HTTP Service다.
+#  */
 service:
   enabled: true
   port: 8000

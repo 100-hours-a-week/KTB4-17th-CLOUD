@@ -1,9 +1,11 @@
-# 현재 AWS 배포 기본값: auth/auth-api
-# 출처: star-EKS-v3, Helm revision 3, 확인일 2026-11-10
-# 차트 루트 values.yaml 위에 이 파일 하나만 적용합니다. examples/ 및 QA 오버레이는 추가하지 않습니다.
-# 비밀값은 포함하지 않으며 externalSecret.data의 AWS 참조로 주입합니다.
+# /** Auth API · auth/auth-api (star-EKS-v3, Helm 3, 2026-11-10)
+#  * 공통 values.yaml 다음에 이 파일 하나를 적용해 역할별 Deployment·Service를 구성한다.
+#  */
 configMap:
   data:
+    # /** Internal AI services
+    #  * AI 설정은 chat의 chat-ai-practice·chat-ai-simulation과 user의 image-worker Service를 참조한다.
+    #  */
     AI_PRACTICE_BASE_URL: http://chat-ai-practice.chat.svc.cluster.local:8000
     AI_PROFILE_TRUST_BASE_URL: http://image-worker.user.svc.cluster.local:8000
     AI_SIMULATION_BASE_URL: http://chat-ai-simulation.chat.svc.cluster.local:8000
@@ -38,6 +40,9 @@ configMap:
     SPRING_PROFILES_ACTIVE: prod
     TOKEN_URI: https://kauth.kakao.com/oauth/token
     USER_INFO_URI: https://kapi.kakao.com/v2/user/me
+# /** Runtime Secret
+#  * DB·인증 Secret과 Parameter Store의 Redis 참조를 auth-api-secret에 모아 Pod envFrom으로 주입한다.
+#  */
 externalSecret:
   data:
   - remoteRef:
@@ -76,6 +81,9 @@ externalSecret:
 image:
   digest: sha256:d9bc7106543bdb62d424cf1e0534066a1ca14cb11169fb553cc34fbc6880f87a
   repository: 975779326240.dkr.ecr.ap-northeast-2.amazonaws.com/star23/be
+# /** External routes
+#  * 외부 인증 API 경로를 이 릴리스의 Service에 연결한다.
+#  */
 ingress:
   certificateArn: arn:aws:acm:ap-northeast-2:975779326240:certificate/13083ecf-f79a-4b35-b17f-5e134d1eb6b8
   enabled: true

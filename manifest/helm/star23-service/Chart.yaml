@@ -1,3 +1,6 @@
+# /** Service chart
+#  * 한 릴리스의 Deployment·Service를 묶고 values에 따라 Ingress와 외부 Secret 연결을 추가한다.
+#  */
 apiVersion: v2
 name: star23-service
 description: One STAR23 application Deployment, Service, and optional ALB Ingress

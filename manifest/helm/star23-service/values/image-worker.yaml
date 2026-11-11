@@ -1,7 +1,6 @@
-# 현재 AWS 배포 기본값: user/image-worker
-# 출처: star-EKS-v3, Helm revision 3, 확인일 2026-11-10
-# 차트 루트 values.yaml 위에 이 파일 하나만 적용합니다. examples/ 및 QA 오버레이는 추가하지 않습니다.
-# 비밀값은 포함하지 않으며 externalSecret.data의 AWS 참조로 주입합니다.
+# /** Image worker · user/image-worker (star-EKS-v3, Helm 3, 2026-11-10)
+#  * 공통 values.yaml 다음에 이 파일 하나를 적용해 역할별 Deployment·Service를 구성한다.
+#  */
 configMap:
   data:
     DB_ECHO: 'false'
@@ -9,6 +8,9 @@ configMap:
     GUARDRAIL_MODE: shadow
     LLM_BASE_URL: https://openrouter.ai/api/v1
 containerPort: 8000
+# /** Runtime Secret
+#  * 공유 Secret의 AI 속성과 모델 키를 image-worker-secret으로 매핑해 Pod envFrom에 주입한다.
+#  */
 externalSecret:
   data:
   - remoteRef:
@@ -62,6 +64,9 @@ resources:
   requests:
     cpu: 750m
     memory: 1250Mi
+# /** Internal AI service
+#  * user의 image-worker Service를 BE에서 참조하며 Ingress는 만들지 않는다.
+#  */
 service:
   port: 8000
 serviceAccount:

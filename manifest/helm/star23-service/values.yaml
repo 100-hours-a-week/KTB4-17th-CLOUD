@@ -1,10 +1,12 @@
-# star-EKS-v3의 현재 배포를 기준으로 한 기본값입니다 (2026-11-10).
-# 역할마다 이미지·포트·설정이 다르므로 values/<릴리스>.yaml 하나를 함께 지정합니다.
-# 예: helm template user-api ./manifest/helm/star23-service -n user \
-#       -f ./manifest/helm/star23-service/values/user-api.yaml
+# /** Service values
+#  * star-EKS-v3의 2026-11-10 배포 기준이며 이 기본값 뒤에 values/<릴리스>.yaml 하나만 적용한다.
+#  */
 nameOverride: ""
 replicaCount: 1
 
+# /** Image
+#  * Deployment는 역할 파일의 이미지를 사용하며 digest가 있으면 tag보다 우선한다.
+#  */
 image:
   repository: ""
   tag: ""
@@ -14,6 +16,9 @@ image:
 command: []
 args: []
 
+# /** Service
+#  * ClusterIP Service의 port는 Deployment의 http 포트인 containerPort로 연결된다.
+#  */
 containerPort: 8080
 service:
   enabled: true
@@ -39,18 +44,28 @@ nodeSelector:
 tolerations: []
 affinity: {}
 
+# /** ConfigMap
+#  * 일반 설정은 <이름>-config로 생성되고 Deployment가 envFrom으로 읽는다.
+#  */
 configMap:
   enabled: true
   data: {}
 
+# /** Pod environment
+#  * env는 개별 값을 주입하고 envFrom은 차트의 ConfigMap·Secret 뒤에 추가 참조를 붙인다.
+#  */
 env: []
 envFrom: []
+# /** Application ServiceAccount
+#  * 앱 Pod의 계정을 선택하며 ESO 컨트롤러의 AWS 인증 계정과는 별개다.
+#  */
 serviceAccountName: ""
 serviceAccount:
   create: true
 
-# Requires External Secrets Operator and Pod Identity on its controller ServiceAccount.
-# Secrets Manager values are never stored in this chart.
+# /** External secrets
+#  * ESO가 AWS 참조를 <이름>-secret에 동기화하고 Pod가 envFrom으로 읽는다.
+#  */
 externalSecret:
   enabled: true
   region: ap-northeast-2
@@ -58,6 +73,9 @@ externalSecret:
   parameterStoreEnabled: false
   data: []
 
+# /** Health checks
+#  * readiness는 Service 연결, liveness는 컨테이너 재시작을 판단하며 ALB 헬스체크는 ingress에서 정한다.
+#  */
 probes:
   readiness:
     enabled: true
@@ -68,6 +86,9 @@ probes:
     path: /actuator/health
     initialDelaySeconds: 180
 
+# /** Ingress
+#  * ingress.enabled가 외부 ALB 연결을 결정하며 Service의 내부 DNS 연결과는 별개다.
+#  */
 ingress:
   enabled: false
   host: v3.star23sharp.com

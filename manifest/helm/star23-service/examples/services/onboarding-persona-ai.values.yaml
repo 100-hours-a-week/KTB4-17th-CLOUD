@@ -1,5 +1,10 @@
-# Layer on examples/ai.values.yaml; this names the role-specific ClusterIP Service.
+# /** Onboarding Persona AI example
+#  * ai.values.yaml 뒤에 적용하는 user/onboarding-persona-ai 역할 예제이며, secrets/ai.values.yaml을 마지막에 합친다.
+#  */
 nameOverride: onboarding-persona-ai
+# /** Persona service
+#  * onboarding-api의 AI_PERSONA_BASE_URL·AI_KAKAO_BASE_URL이 함께 가리키는 내부 HTTP Service다.
+#  */
 service:
   enabled: true
   port: 8000

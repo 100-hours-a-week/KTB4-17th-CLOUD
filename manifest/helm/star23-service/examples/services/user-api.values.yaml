@@ -1,3 +1,6 @@
+# /** User API example
+#  * backend.values.yaml 뒤에 적용하는 user/user-api 역할 예제이며, secrets/backend.values.yaml을 마지막에 합친다.
+#  */
 nameOverride: user-api
 service:
   enabled: true
@@ -17,6 +20,9 @@ ingress:
       pathType: Prefix
     - path: "/api/v1/files"
       pathType: Prefix
+# /** Notification delivery
+#  * 알림 생성·outbox relay는 끄고, v3 전용 그룹 접두사로 기존 delivery 토픽의 전달 consumer만 켠다.
+#  */
 configMap:
   data:
     APP_NOTIFICATION_CREATION_ENABLED: "false"

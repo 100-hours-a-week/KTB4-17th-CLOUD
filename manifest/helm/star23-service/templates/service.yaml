@@ -1,3 +1,6 @@
+{{/* Service
+ * 이름·릴리스 라벨이 같은 Pod를 골라 http 컨테이너 포트로 요청을 전달한다.
+ */}}
 {{- if .Values.service.enabled }}
 apiVersion: v1
 kind: Service
