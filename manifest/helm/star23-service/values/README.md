@@ -49,16 +49,6 @@ Argo CD 관리로 전환한 앱은 Helm 명령을 병행하지 않고 이 폴더
 - 실제 비밀번호·토큰: AWS Secrets Manager 또는 SSM SecureString. Git에는 참조만 저장한다.
 - CA·노드그룹·IAM·Pod Identity 연결: 앱 values 밖의 클러스터·AWS 인프라 구성.
 
-앱별 HPA 설정은 [HPA 설정 안내](../AUTOSCALING.md)를 따른다. 기본값은 비활성화이며 역할 파일에서 선택적으로 켠다.
-
-## BE와 AI의 공통 인증키 참조
-
-Spring 역할의 `AI_PRACTICE_API_KEY`와 FastAPI 역할의 `INTERNAL_API_KEY`는 같은 AWS Secret `star23/prod/be`의 `AI_INTERNAL_API_KEY` 속성을 읽는다. 환경변수 이름은 각 앱 코드가 읽는 이름을 유지하며, 실제 비밀값을 values에 복사하지 않는다. 이전 Secret 오버레이 예제에도 같은 참조를 적용했다. `AI_PRACTICE_CALLBACK_SECRET`은 AI→BE 콜백용 별도 인증키이므로 이 값과 합치지 않는다.
-
-이 참조 변경을 main에 반영하면 ESO가 Kubernetes Secret을 갱신한다. 기존 Pod의 환경변수는 Secret 변경만으로 갱신되지 않으므로 Secret 동기화와 값의 일치 여부를 확인한 뒤 대상 Pod를 순차적으로 갱신한다.
-
-HTTP 헤더 이름은 Helm에서 설정하지 않는다. BE 연습대화 클라이언트의 `X-API-Key` 하드코딩을 AI 공통 인증 계약인 `X-Internal-Api-Key`로 변경하려면 BE 코드 수정과 새 이미지 배포가 필요하다. 현재 AI 연습대화 라우터에는 공통 인증 검사가 연결돼 있지 않으므로, 실제 인증 적용은 AI 코드에도 반영해야 한다. 이 Helm 참조 변경이 두 앱의 HTTP 인증 구현을 대신하지는 않는다.
-
 Chat Socket은 현재 배포에서 probe가 꺼져 있고 chat runtime이 켜져 있다. 이 상태를 그대로 저장했으며, probe 개선이나 consumer 격리 같은 동작 변경은 별도로 검증해야 한다. Recommend Batch와 vLLM은 현재 12개 앱 릴리스에 없으므로 임의로 추가하지 않았다.
 
 검증: 역할 파일 하나씩으로 12개 모두 Helm lint를 통과했고, 렌더링 결과는 수집한 Helm 매니페스트와 78개 실제 리소스의 관리 대상 설정에 일치했다. API 서버가 추가하는 기본값·상태는 비교 대상에서 제외했다.

@@ -1,6 +1,0 @@
-# QA boot only: fit chat-api and chat-socket with the AI roles on one general node.
-# Both chat runtime and public Ingress remain disabled during this placement check.
-# Preserve the base 2Gi memory request and 2 CPU / 4Gi limits.
-resources:
-  requests:
-    cpu: "500m"
