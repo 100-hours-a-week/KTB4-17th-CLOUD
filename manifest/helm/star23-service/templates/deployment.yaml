@@ -18,7 +18,7 @@ spec:
     metadata:
       {{- if .Values.configMap.enabled }}
       annotations:
-        checksum/config: {{ toYaml .Values.configMap.data | sha256sum | quote }}
+        checksum/config: {{ .Values.configMap.rolloutChecksumOverride | default (toYaml .Values.configMap.data | sha256sum) | quote }}
       {{- end }}
       labels:
         {{- include "star23.labels" . | nindent 8 }}
