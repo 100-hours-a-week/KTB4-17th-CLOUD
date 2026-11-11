@@ -2,6 +2,13 @@
 # 출처: star-EKS-v3, Helm revision 7, 확인일 2026-11-10
 # 차트 루트 values.yaml 위에 이 파일 하나만 적용합니다. examples/ 및 QA 오버레이는 추가하지 않습니다.
 # 비밀값은 포함하지 않으며 externalSecret.data의 AWS 참조로 주입합니다.
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
 configMap:
   data:
     AI_KAKAO_BASE_URL: http://onboarding-persona-ai.user.svc.cluster.local:8000
@@ -56,7 +63,8 @@ externalSecret:
     secretKey: CLIENT_SECRET
   - remoteRef:
       key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9
-      property: AI_PRACTICE_API_KEY
+      # AI의 INTERNAL_API_KEY와 같은 원본 값을 사용합니다. BE가 읽는 환경변수 이름은 유지합니다.
+      property: AI_INTERNAL_API_KEY
     secretKey: AI_PRACTICE_API_KEY
   - remoteRef:
       key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9

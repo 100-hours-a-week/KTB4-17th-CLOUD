@@ -5,6 +5,17 @@
 nameOverride: ""
 replicaCount: 1
 
+# 기본값은 비활성화입니다. 앱별 values/<릴리스>.yaml에서 활성화합니다.
+# 활성화하면 replicaCount 대신 HPA가 Deployment의 Pod 개수를 관리합니다.
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  # CPU limits가 아닌 requests 대비 평균 CPU 사용률입니다.
+  targetCPUUtilizationPercentage: 80
+  # 필요하면 scaleUp/scaleDown 정책을 앱별로 지정합니다.
+  behavior: {}
+
 image:
   repository: ""
   tag: ""
