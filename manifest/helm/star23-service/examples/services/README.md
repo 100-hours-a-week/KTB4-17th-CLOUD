@@ -1,4 +1,6 @@
-# Kubernetes design inventory and current Service examples
+# 이전 역할별 설정 예제와 워크로드 목록
+
+**현재 기본 배포는 [values/README.md](../../values/README.md)의 역할 파일 하나를 사용한다. 이 디렉터리는 이전 설정 조합의 참고 자료이며 새 기본값에 함께 적용하지 않는다.**
 
 The chart already has `templates/service.yaml`. Each Helm release uses a separate `nameOverride`, so its Service selects only Pods from the same release (`app.kubernetes.io/instance`). These overlays specify service names and ports; they are **not complete deployable values**.
 
@@ -11,12 +13,11 @@ The chart already has `templates/service.yaml`. Each Helm release uses a separat
 Example render (no deployment):
 
 ```sh
-helm template user-api ./helm/star23-service -n user \
-  -f ./helm/star23-service/examples/backend.values.yaml \
-  -f ./helm/star23-service/examples/services/user-api.values.yaml
+helm template user-api ./manifest/helm/star23-service -n user \
+  -f ./manifest/helm/star23-service/values/user-api.yaml
 ```
 
-All 12 application roles are installed as one-Pod QA releases. The backend base example defaults to one replica. Each release runs the **whole BE or AI application**. The QA overrides `qa-chat-pod-only.values.yaml`, `qa-general-capacity.values.yaml`, and `qa-c4-ai-cohost.values.yaml` are applied to the relevant live releases; include them on later upgrades or use `--reuse-values`. The chat override disables the chat runtime to avoid joining the v2 Kafka relay consumer group. The general-capacity override reduces the CPU request of `chat-api` and `chat-socket` from 1 CPU to 500m each so the two additional AI roles fit on one general node. The c4 override reduces the image and face AI requests to 750m/1250Mi and limits to 1 CPU/2Gi per Pod, below the design's face-inference request. These values confirm only idle Pod startup and must be load-tested before traffic. `user-api`, `onboarding-api`, `recommend-api`, and `auth-api` have public QA Ingresses. Chat Ingresses remain disabled; AI roles have internal ClusterIP Services only. Namespace `user`, `chat`, `recommend`, and `auth` exist.
+현재 AWS 배포값은 `values/<릴리스>.yaml`에 통합했다. Chat CPU 축소, Image·Face AI의 CPU 노드 배치와 리소스 축소, Secret 참조를 이미 포함하므로 QA 오버레이나 `--reuse-values`는 필요하지 않다. 역할별 Pod 1개, BE Ingress 6개와 내부 AI Service를 현재 배포 기준으로 유지한다. Chat API runtime은 비활성화, Chat Socket runtime은 활성화 상태다. 전체 Spring·FastAPI 이미지의 복제이므로 scheduler·consumer의 완전한 역할 격리를 뜻하지 않는다.
 
 ## Chapter 3: complete workload inventory
 

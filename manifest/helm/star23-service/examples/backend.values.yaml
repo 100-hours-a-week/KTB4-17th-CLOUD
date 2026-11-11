@@ -69,7 +69,4 @@ configMap:
     AUTH_COOKIE_SECURE: "true"
     AI_PRACTICE_BASE_URL: "http://chat-ai-practice.chat.svc.cluster.local:8000"
     AI_SIMULATION_BASE_URL: "http://chat-ai-simulation.chat.svc.cluster.local:8000"
-    # The current v2 BE image ignores this variable; profile-trust still uses AI_PRACTICE_BASE_URL.
-    # Keep the intended destination here for the future BE image that reads it.
-    AI_PROFILE_TRUST_BASE_URL: "http://image-worker.user.svc.cluster.local:8000"
     APP_RECOMMENDATION_REFRESH_ZONE: Asia/Seoul

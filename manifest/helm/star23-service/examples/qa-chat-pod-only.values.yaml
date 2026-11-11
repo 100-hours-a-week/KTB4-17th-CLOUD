@@ -1,7 +1,0 @@
-# Apply after the chat-api or chat-socket role overlay while validating one Pod per role.
-# The current full BE image hardcodes chat-realtime-relay-v1 as its Kafka group.
-# Starting another consumer with that group would split v2 production events.
-# Keep public Ingress disabled and chat runtime off until v3 relay isolation is configured.
-configMap:
-  data:
-    APP_CHAT_RUNTIME_ENABLED: "false"

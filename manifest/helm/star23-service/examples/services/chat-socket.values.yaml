@@ -4,22 +4,15 @@ service:
   enabled: true
   port: 8080
 ingress:
-  enabled: false
+  enabled: true
+  # Chat REST endpoints and WebSocket share the chat-socket runtime.
   paths:
-    - path: /ws/chat
+    - path: "/api/v1/chat-rooms"
+      pathType: Prefix
+    - path: "/ws/chat"
       pathType: Exact
-    - path: "/api/v1/chat-rooms/*/messages"
-      pathType: ImplementationSpecific
-    - path: "/api/v1/chat-rooms/*/read"
-      pathType: ImplementationSpecific
-    - path: "/api/v1/chat-rooms/*/leave"
-      pathType: ImplementationSpecific
-    - path: "/api/v1/chat-rooms/*/delegations"
-      pathType: ImplementationSpecific
-    - path: "/api/v1/chat-rooms/*/delegations/*"
-      pathType: ImplementationSpecific
-    - path: "/api/v1/chat-rooms/*/images/*/access-url"
-      pathType: ImplementationSpecific
 configMap:
   data:
+    APP_CHAT_RUNTIME_ENABLED: "true"
+    AI_PRACTICE_BASE_URL: http://chat-ai-practice.chat.svc.cluster.local:8000
     AI_CHAT_DELEGATION_BASE_URL: http://chat-ai-cleanup.chat.svc.cluster.local:8000

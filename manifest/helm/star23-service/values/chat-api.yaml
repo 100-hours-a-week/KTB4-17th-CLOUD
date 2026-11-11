@@ -1,0 +1,94 @@
+# 현재 AWS 배포 기본값: chat/chat-api
+# 출처: star-EKS-v3, Helm revision 6, 확인일 2026-11-10
+# 차트 루트 values.yaml 위에 이 파일 하나만 적용합니다. examples/ 및 QA 오버레이는 추가하지 않습니다.
+# 비밀값은 포함하지 않으며 externalSecret.data의 AWS 참조로 주입합니다.
+configMap:
+  data:
+    AI_PRACTICE_BASE_URL: http://chat-ai-practice.chat.svc.cluster.local:8000
+    AI_PROFILE_TRUST_BASE_URL: http://image-worker.user.svc.cluster.local:8000
+    AI_SIMULATION_BASE_URL: http://chat-ai-simulation.chat.svc.cluster.local:8000
+    APP_CHAT_RUNTIME_ENABLED: 'false'
+    APP_FILE_ALLOWED_MIME_TYPES: image/jpeg,image/png,image/webp
+    APP_FILE_CLEANUP_BATCH_SIZE: '50'
+    APP_FILE_CLEANUP_DELAY_MS: '300000'
+    APP_FILE_MAX_SIZE_BYTES: '10485760'
+    APP_FILE_UPLOAD_INTENT_RETENTION: 30d
+    APP_FILE_UPLOAD_INTENT_TTL: 15m
+    APP_RECOMMENDATION_REFRESH_ZONE: Asia/Seoul
+    AUTHORIZATION_URI: https://kauth.kakao.com/oauth/authorize
+    AUTH_ALLOWED_ORIGINS: https://star23sharp.com,https://v3.star23sharp.com
+    AUTH_COOKIE_SAME_SITE: Lax
+    AUTH_COOKIE_SECURE: 'true'
+    AUTH_ONBOARDING_REDIRECT_URI: https://star23sharp.com/onboarding
+    AUTH_REGISTRATION_REDIRECT_URI: https://star23sharp.com/registration
+    AUTH_SERVICE_REDIRECT_URI: https://star23sharp.com/home
+    AWS_S3_BUCKET: star23-images
+    AWS_S3_DOWNLOAD_URL_EXPIRATION: 5m
+    AWS_S3_REGION: ap-northeast-2
+    AWS_S3_UPLOAD_URL_EXPIRATION: 10m
+    CLIENT_ID: 3f583bf72a7da5ecc954a04a5c291405
+    DB_URL: jdbc:mysql://star23-v2-prod-mysql.c7wkoseo8zgf.ap-northeast-2.rds.amazonaws.com:3306/star23_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    DB_USERNAME: star23
+    FLYWAY_ENABLED: 'true'
+    JPA_FORMAT_SQL: 'false'
+    JWT_PENDING_EXPIRATION_MINUTES: '10'
+    JWT_SERVICE_EXPIRATION_MINUTES: '15'
+    KAFKA_BOOTSTRAP_SERVERS: 10.1.22.118:9092,10.1.22.118:9094,10.1.22.118:9095
+    KAKAO_TALK_PROFILE_URI: https://kapi.kakao.com/v1/api/talk/profile
+    REDIRECT_URI: https://star23sharp.com/api/v1/auth/kakao/callback
+    SPRING_PROFILES_ACTIVE: prod
+    TOKEN_URI: https://kauth.kakao.com/oauth/token
+    USER_INFO_URI: https://kapi.kakao.com/v2/user/me
+externalSecret:
+  data:
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9
+      property: DB_PASSWORD
+    secretKey: DB_PASSWORD
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9
+      property: JWT_SECRET
+    secretKey: JWT_SECRET
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9
+      property: CLIENT_SECRET
+    secretKey: CLIENT_SECRET
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9
+      property: AI_PRACTICE_API_KEY
+    secretKey: AI_PRACTICE_API_KEY
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9
+      property: AI_PRACTICE_CALLBACK_SECRET
+    secretKey: AI_PRACTICE_CALLBACK_SECRET
+  - remoteRef:
+      key: "/star23/prod/migration/kafka-redis/be/REDIS_URL"
+    secretKey: REDIS_URL
+    store: ParameterStore
+  - remoteRef:
+      key: "/star23/prod/migration/kafka-redis/be/REDIS_URL"
+    secretKey: SPRING_DATA_REDIS_URL
+    store: ParameterStore
+  - remoteRef:
+      key: "/star23/prod/migration/kafka-redis/be/REDIS_URL"
+    secretKey: PROFILE_CACHE_REDIS_URL
+    store: ParameterStore
+  parameterStoreEnabled: true
+image:
+  digest: sha256:d9bc7106543bdb62d424cf1e0534066a1ca14cb11169fb553cc34fbc6880f87a
+  repository: 975779326240.dkr.ecr.ap-northeast-2.amazonaws.com/star23/be
+ingress:
+  certificateArn: arn:aws:acm:ap-northeast-2:975779326240:certificate/13083ecf-f79a-4b35-b17f-5e134d1eb6b8
+  enabled: true
+  paths:
+  - path: "/api/v1/ai-practice"
+    pathType: Prefix
+  - path: "/api/v1/ai-simulations"
+    pathType: Prefix
+labels:
+  framework: spring
+  team: backend
+nameOverride: chat-api
+resources:
+  requests:
+    cpu: 500m

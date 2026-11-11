@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: image-worker
+  namespace: argocd
+spec:
+  project: star23-apps
+  source:
+    repoURL: https://github.com/100-hours-a-week/KTB4-17th-CLOUD.git
+    # main에 병합된 차트와 역할별 values를 자동 동기화합니다.
+    targetRevision: main
+    path: manifest/helm/star23-service
+    helm:
+      releaseName: image-worker
+      valueFiles:
+        - values/image-worker.yaml
+  destination:
+    # Argo CD도 star-EKS-v3에 설치하는 구성입니다.
+    server: https://kubernetes.default.svc
+    namespace: user
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - FailOnSharedResource=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

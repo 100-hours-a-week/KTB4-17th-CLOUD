@@ -13,4 +13,6 @@ ingress:
     - path: "/api/v1/users/me/recommendation-passes"
       pathType: Prefix
     - path: "/api/v1/users/me/preferences"
-      pathType: Prefix
+      pathType: Prefix #하위 경로 실행 헐용
+    - path: "/api/v1/popular-profiles"
+      pathType: Exact  #이 경로만 실행 허용 (일치할때만 사용)
