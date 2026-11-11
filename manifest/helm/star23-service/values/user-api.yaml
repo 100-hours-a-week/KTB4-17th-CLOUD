@@ -1,8 +1,10 @@
-# 현재 AWS 배포 기본값: user/user-api
-# 출처: star-EKS-v3, Helm revision 12, 확인일 2026-11-10
+# 다음 BE 이미지용 준비값: user/user-api
+# 새 이미지 배포 때 rolloutChecksumOverride를 제거해 Pod 환경 변수를 갱신합니다.
 # 차트 루트 values.yaml 위에 이 파일 하나만 적용합니다. examples/ 및 QA 오버레이는 추가하지 않습니다.
 # 비밀값은 포함하지 않으며 externalSecret.data의 AWS 참조로 주입합니다.
 configMap:
+  # 설정을 먼저 등록하고 현재 이미지는 재시작하지 않도록 기존 체크섬을 유지합니다.
+  rolloutChecksumOverride: 25cb96818e0ab3dfc67d35e71a51387e52b2160d717c6465eed8852363d2ffbf
   data:
     AI_PRACTICE_BASE_URL: http://chat-ai-practice.chat.svc.cluster.local:8000
     AI_PROFILE_TRUST_BASE_URL: http://image-worker.user.svc.cluster.local:8000
@@ -13,10 +15,13 @@ configMap:
     APP_FILE_MAX_SIZE_BYTES: '10485760'
     APP_FILE_UPLOAD_INTENT_RETENTION: 30d
     APP_FILE_UPLOAD_INTENT_TTL: 15m
-    APP_NOTIFICATION_CREATION_ENABLED: 'false'
+    APP_NOTIFICATION_OUTBOX_WORKER_ENABLED: 'true'
+    APP_NOTIFICATION_DELIVERY_RESULT_TIMEOUT_MS: '15000'
+    APP_NOTIFICATION_OUTBOX_WORKER_FIXED_DELAY_MS: '1000'
+    APP_NOTIFICATION_OUTBOX_WORKER_MAX_REQUESTS_PER_RUN: '100'
+    APP_NOTIFICATION_OUTBOX_WORKER_SHUTDOWN_WAIT_SECONDS: '20'
     APP_NOTIFICATION_DELIVERY_ENABLED: 'true'
     APP_NOTIFICATION_DELIVERY_GROUP_ID_PREFIX: v3-notification-sse-v1
-    APP_NOTIFICATION_OUTBOX_RELAY_ENABLED: 'false'
     APP_RECOMMENDATION_REFRESH_ZONE: Asia/Seoul
     AUTHORIZATION_URI: https://kauth.kakao.com/oauth/authorize
     AUTH_ALLOWED_ORIGINS: https://star23sharp.com,https://v3.star23sharp.com

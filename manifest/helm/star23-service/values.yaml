@@ -52,6 +52,7 @@ affinity: {}
 
 configMap:
   enabled: true
+  rolloutChecksumOverride: ""
   data: {}
 
 env: []
