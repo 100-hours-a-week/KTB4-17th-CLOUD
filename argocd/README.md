@@ -2,6 +2,8 @@
 
 현재 앱 차트와 역할별 기본값을 Argo CD Application 12개에 연결한다. Argo CD는 `star-EKS-v3` 안에 설치하며, 기존 Helm 릴리스 이름과 Namespace를 유지한다. 이 디렉터리를 저장하거나 커밋하는 것만으로 클러스터에 Argo CD가 설치되거나 Application이 등록되지는 않는다.
 
+2026-11-10의 실제 설치 명령·결과·오류 해결과 앱 등록 기록은 [설치 및 앱 등록 기록](INSTALLATION.md)에 정리했다. Argo CD 설치와 Application 12개 생성은 확인됐고, 제공된 등록 직후 상태는 `Unknown / Healthy`여서 Git 동기화 완료는 추가 확인이 필요하다.
+
 ## 파일 구조
 
 ```text
@@ -19,7 +21,7 @@ argocd/
 | 항목 | 설정 |
 | --- | --- |
 | Git 저장소 | `https://github.com/100-hours-a-week/KTB4-17th-CLOUD.git` |
-| 초기 감시 브랜치 | 현재 작업 브랜치 `feat/kube` |
+| 감시 브랜치 | 배포 기준 브랜치 `main` |
 | 차트 경로 | `manifest/helm/star23-service` |
 | 값 파일 | 차트 기준 `values/<릴리스>.yaml` 하나 |
 | 대상 클러스터 | Argo CD가 설치된 동일 EKS (`https://kubernetes.default.svc`) |
@@ -33,11 +35,11 @@ argocd/
 
 공통 `values.yaml`이나 템플릿 변경은 영향을 받는 여러 앱에 반영된다. 역할 파일 하나만 바꾸면 해당 설정을 사용하는 앱의 변경사항이 반영된다. `terraform/`이나 앱 소스 저장소 변경을 직접 감시하는 구성은 아니다. Git 변경은 Argo CD의 감지 주기 또는 webhook 이후 반영된다.
 
-배포 브랜치를 `main` 등으로 옮길 때는 해당 브랜치에 차트와 values를 먼저 반영하고, 12개 Application의 `spec.source.targetRevision`을 함께 수정한 뒤 초기 등록 명령을 다시 실행한다. Application·Project 연결 설정 자체는 아래 `kubectl apply -k argocd`로 관리한다. 이 구성에는 Application들을 다시 관리하는 부모 Application을 추가하지 않았다.
+차트·values·Argo CD 설정을 `main`에 병합한 뒤 초기 등록 명령을 실행한다. 기능 브랜치에 푸시하거나 PR을 생성하는 것만으로는 배포되지 않으며, `main`에 병합된 변경을 감지한다. 이미 Application을 등록했다면 아래 `kubectl apply -k argocd`를 다시 실행해 감시 브랜치 변경을 반영한다. Application·Project 연결 설정 자체도 이 명령으로 관리한다. 이 구성에는 Application들을 다시 관리하는 부모 Application을 추가하지 않았다.
 
 ## 최초 설치와 연결
 
-먼저 파일을 감시 브랜치에 커밋·푸시한다. 아래 명령은 실제 설치·등록을 수행하므로 적용할 때 실행하며, 이번 파일 추가 과정에서는 실행하지 않았다. 앱 Namespace와 ESO·ALB Controller는 기존 구성을 사용한다. Argo CD 추가 실행에 필요한 general 노드 용량은 설치 전에 확인한다.
+재구축할 때는 먼저 파일을 감시 브랜치에 커밋·푸시한다. 아래 명령은 실제 설치·등록을 수행한다. 앱 Namespace와 ESO·ALB Controller는 기존 구성을 사용한다. Argo CD 추가 실행에 필요한 general 노드 용량은 설치 전에 확인한다. 이미 설치된 환경에서는 [설치 기록](INSTALLATION.md)의 확인 명령으로 현재 상태부터 점검한다.
 
 저장소 루트에서 현재 접속 대상 확인:
 

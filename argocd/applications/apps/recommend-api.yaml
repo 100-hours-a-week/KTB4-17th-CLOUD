@@ -7,8 +7,8 @@ spec:
   project: star23-apps
   source:
     repoURL: https://github.com/100-hours-a-week/KTB4-17th-CLOUD.git
-    # 현재 연결 브랜치입니다. 배포 브랜치로 통합하면 모든 Application의 값을 함께 변경합니다.
-    targetRevision: feat/kube
+    # main에 병합된 차트와 역할별 values를 자동 동기화합니다.
+    targetRevision: main
     path: manifest/helm/star23-service
     helm:
       releaseName: recommend-api
