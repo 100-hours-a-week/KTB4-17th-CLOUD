@@ -21,9 +21,10 @@ function handler(event) {
     });
   }
 
-  if ((host === 'star23sharp.com' || host === 'v3.star23sharp.com') && (isApi || isWebSocket)) {
+  if (host === 'star23sharp.com' && (isApi || isWebSocket)) {
     cf.updateRequestOrigin({
       domainName: 'star23-v3-alb-1133942644.ap-northeast-2.elb.amazonaws.com',
+      // Internal EKS Ingress Host; this does not enable a public CloudFront alias.
       hostHeader: 'v3.star23sharp.com',
       customOriginConfig: {
         port: 443,
