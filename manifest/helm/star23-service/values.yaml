@@ -12,7 +12,7 @@ autoscaling:
   minReplicas: 1
   maxReplicas: 3
   # CPU limits가 아닌 requests 대비 평균 CPU 사용률입니다.
-  targetCPUUtilizationPercentage: 70
+  targetCPUUtilizationPercentage: 80
   # 필요하면 scaleUp/scaleDown 정책을 앱별로 지정합니다.
   behavior: {}
 
