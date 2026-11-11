@@ -18,9 +18,9 @@ configMap:
     AUTH_ALLOWED_ORIGINS: https://star23sharp.com,https://v3.star23sharp.com
     AUTH_COOKIE_SAME_SITE: Lax
     AUTH_COOKIE_SECURE: 'true'
-    AUTH_ONBOARDING_REDIRECT_URI: https://v3.star23sharp.com/onboarding
-    AUTH_REGISTRATION_REDIRECT_URI: https://v3.star23sharp.com/registration
-    AUTH_SERVICE_REDIRECT_URI: https://v3.star23sharp.com/home
+    AUTH_ONBOARDING_REDIRECT_URI: https://star23sharp.com/onboarding
+    AUTH_REGISTRATION_REDIRECT_URI: https://star23sharp.com/registration
+    AUTH_SERVICE_REDIRECT_URI: https://star23sharp.com/home
     AWS_S3_BUCKET: star23-images
     AWS_S3_DOWNLOAD_URL_EXPIRATION: 5m
     AWS_S3_REGION: ap-northeast-2
@@ -34,7 +34,7 @@ configMap:
     JWT_SERVICE_EXPIRATION_MINUTES: '15'
     KAFKA_BOOTSTRAP_SERVERS: 10.1.22.118:9092,10.1.22.118:9094,10.1.22.118:9095
     KAKAO_TALK_PROFILE_URI: https://kapi.kakao.com/v1/api/talk/profile
-    REDIRECT_URI: https://v3.star23sharp.com/api/v1/auth/kakao/callback
+    REDIRECT_URI: https://star23sharp.com/api/v1/auth/kakao/callback
     SPRING_PROFILES_ACTIVE: prod
     TOKEN_URI: https://kauth.kakao.com/oauth/token
     USER_INFO_URI: https://kapi.kakao.com/v2/user/me
@@ -54,7 +54,8 @@ externalSecret:
     secretKey: CLIENT_SECRET
   - remoteRef:
       key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9
-      property: AI_PRACTICE_API_KEY
+      # AI의 INTERNAL_API_KEY와 같은 원본 값을 사용합니다. BE가 읽는 환경변수 이름은 유지합니다.
+      property: AI_INTERNAL_API_KEY
     secretKey: AI_PRACTICE_API_KEY
   - remoteRef:
       key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9

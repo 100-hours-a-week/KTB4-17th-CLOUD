@@ -1,0 +1,31 @@
+# 2026-11-11에 읽은 기존 cluster-autoscaler 릴리스의 사용자 설정입니다.
+# 공식 차트 9.60.0 / 앱 v1.37.0, Namespace: kube-system.
+# 이 폴더는 자체 Helm 차트가 아니라 공식 차트에 전달하는 values 폴더입니다.
+cloudProvider: aws
+awsRegion: ap-northeast-2
+
+autoDiscovery:
+  clusterName: star-EKS-v3
+
+# CA 자체가 실행될 노드입니다. 확장할 앱 노드 그룹을 제한하는 설정은 아닙니다.
+nodeSelector:
+  workload-class: general
+
+# 기존 IRSA 연결을 유지합니다. 액세스 키를 Git에 저장하지 않습니다.
+rbac:
+  serviceAccount:
+    create: true
+    name: cluster-autoscaler
+    annotations:
+      eks.amazonaws.com/role-arn: arn:aws:iam::975779326240:role/ClusterAutoscalerRole-star-EKS-v3
+
+replicaCount: 1
+resources:
+  requests:
+    cpu: 100m
+    memory: 300Mi
+  limits:
+    memory: 600Mi
+
+# 노드 그룹 최소·최대 크기는 이 파일이 아닌 AWS EKS/ASG에서 관리합니다.
+# scale-down 등의 extraArgs는 현재 공식 차트·바이너리 기본값을 유지합니다.
