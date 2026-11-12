@@ -7,6 +7,7 @@ configMap:
     GUARDRAIL_ENFORCE_PERCENT: '100'
     GUARDRAIL_MODE: shadow
     LLM_BASE_URL: https://openrouter.ai/api/v1
+    LLM_MODEL: anthropic/claude-sonnet-4.5
 containerPort: 8000
 # /** Runtime Secret
 #  * 공유 Secret의 AI 속성과 모델 키를 chat-ai-cleanup-secret으로 매핑해 Pod envFrom에 주입한다.
