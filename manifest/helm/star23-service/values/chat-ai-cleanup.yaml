@@ -19,7 +19,8 @@ externalSecret:
     secretKey: DATABASE_URL
   - remoteRef:
       key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9
-      property: AI_INTERNAL_API_KEY
+      # 대화 종료 BE와 동일한 키를 AI의 INTERNAL_API_KEY로 주입합니다.
+      property: AI_CHAT_DELEGATION_API_KEY
     secretKey: INTERNAL_API_KEY
   - remoteRef:
       key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9
