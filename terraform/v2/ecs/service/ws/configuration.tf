@@ -1,6 +1,6 @@
 locals {
   ws_port              = 8080
-  ws_health_check_path = "/actuator/health"
+  ws_health_check_path = "/actuator/health/service"
 
   ws_secret_references = var.ws_use_backend_config ? merge(var.backend_config_references, var.ws_secrets) : var.ws_secrets
 

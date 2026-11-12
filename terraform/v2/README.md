@@ -1,6 +1,6 @@
 # V2 인프라
 
-독립 backend `prod/terraform.tfstate`에서 V2 네트워크·ALB·ECS·RDS·IAM을 관리한다. CloudFront·공통 S3·ECR은 [common](../common/README.md)이 소유하며 `common.tf`에서 필요한 출력만 읽는다. 모니터링은 [cloudwatch](cloudwatch/README.md) 루트에서 관리하며 V1 네트워크 의존성은 없다.
+독립 backend `prod/terraform.tfstate`에서 V2 네트워크·ALB·ECS·IAM을 관리한다. RDS와 DB 접근 규칙의 소유권은 [V3](../v3/README.md)에 있다. CloudFront·공통 S3·ECR은 [common](../common/README.md)이 소유하며 `common.tf`에서 필요한 출력만 읽는다. 모니터링은 [cloudwatch](cloudwatch/README.md) 루트에서 관리하며 V1 네트워크 의존성은 없다.
 
 ## 입력과 실행
 
@@ -48,10 +48,14 @@ NAT 하나를 두 AZ가 공유한다. SG와 규칙은 각 소유 리소스의 `s
 | `ecs/service/be/security.tf` | ALB·V2 모니터링에서 BE로 수신, BE 송신 |
 | `ecs/service/ws/security.tf` | ALB·V2 모니터링에서 WS로 수신, WS 송신 |
 | `ecs/service/ai/security.tf` | BE·WS에서 AI로 수신, AI 송신 |
-| `database/security.tf` | MySQL은 BE·WS, PostgreSQL은 BE·AI 접근 |
+| `../v3/database/security.tf` | 공유 DB SG와 ECS·EKS·Bastion·기존 마이그레이션 접근 |
 
 모니터링은 BE·WS TCP 8080을 수집한다. WS 서비스를 비활성화해도 기존 SG와 DB 접근 규칙은 유지한다.
 
-## 확인된 운영 설정 차이
+## V3와 공유하는 자원
 
-현재 코드와 운영 환경의 차이 6건은 미적용 상태다. WS target group health 경로, RDS 2개의 backup retention(AWS 3일/코드 7일), public subnet 2개의 Kubernetes 태그, WS execution policy의 중복 statement 정리다. 전체 apply 전에 해당 차이를 검토한다.
+VPC·NAT·public/data subnet·ECS SG는 V2에서 계속 관리하며 `network`, `ecs_security_group_ids` 출력으로 V3에 전달한다. EKS 전용 subnet·클러스터·IAM과 RDS는 V3가 관리한다. V2 네트워크를 삭제하면 V3에도 영향을 준다.
+
+`database/`는 이전 구성을 기록으로 남긴 모듈이며 현재 루트에서 호출하지 않는다. 실제 DB 10개 state 기록은 V3로 이동했다. V2의 기존 DB 주소·master secret ARN 출력은 `database.tf`의 읽기 전용 조회로 유지하므로 V3 state를 역참조하지 않는다.
+
+현재 AWS에 맞춰 WS health 경로, public subnet의 EKS 태그, data-2c NAT 경로와 기존 BE 접근 규칙을 보존한다. BE·WS의 기존 Kafka/Redis 파라미터 실행 권한도 각 서비스 IAM 파일에서 관리한다. Secret·SSM 실제 값은 관리하지 않는다.

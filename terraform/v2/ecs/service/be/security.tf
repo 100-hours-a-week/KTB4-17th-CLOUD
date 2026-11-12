@@ -47,3 +47,20 @@ resource "aws_vpc_security_group_ingress_rule" "metrics_from_monitoring" {
   description                  = "Prometheus scrape from V2 monitoring"
   tags                         = { Name = "${var.name_prefix}-app-from-monitoring", environment = var.environment }
 }
+
+/** Existing migration access
+ * 외부 migration SG에서 허용된 기존 TCP 3306 규칙을 그대로 관리한다.
+ */
+data "aws_security_group" "migration" {
+  vpc_id = var.vpc_id
+  name   = "star23-prod-migration-rabbitmq"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "app_from_migration" {
+  security_group_id            = aws_security_group.app.id
+  referenced_security_group_id = data.aws_security_group.migration.id
+  ip_protocol                  = "tcp"
+  from_port                    = 3306
+  to_port                      = 3306
+  description                  = "Temporary MySQL migration access"
+}
