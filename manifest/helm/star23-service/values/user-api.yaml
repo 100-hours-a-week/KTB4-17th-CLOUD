@@ -1,11 +1,7 @@
 # /** User API · user/user-api
-#  * 공통 values.yaml 다음에 적용하는 다음 BE 이미지용 준비값이다.
+#  * 공통 values.yaml 다음에 적용하는 배포 설정이다.
 #  */
 configMap:
-  # /** Staged rollout
-  #  * 현재 Pod의 체크섬을 유지하며 새 BE 이미지 배포 때 override를 제거해 환경변수를 갱신한다.
-  #  */
-  rolloutChecksumOverride: 25cb96818e0ab3dfc67d35e71a51387e52b2160d717c6465eed8852363d2ffbf
   data:
     # /** Internal AI services
     #  * AI 설정은 chat의 chat-ai-practice·chat-ai-simulation과 user의 image-worker Service를 참조한다.
