@@ -2,7 +2,7 @@
 
 독립 backend `prod/cloudwatch-loki/terraform.tfstate`를 사용한다. `module.monitoring`은 V2 EC2·SG를, `module.cloudwatch_loki`는 로그 전달 IAM·SG·로그 그룹·선택적 SQS·호출 권한·재시도 설정·ECS 로그 구독을 관리한다.
 
-EC2는 private AMI로 부팅하며 일반 public IPv4를 할당한다. 삭제 보호를 유지한다. 중지 후 시작하거나 인스턴스를 다시 만들면 공인 주소가 바뀔 수 있으므로 출력 확인 후 Grafana DNS를 갱신한다.
+EC2는 private AMI로 부팅하며 일반 public IPv4를 할당한다. 삭제 보호를 유지하고, 중지 중 공인 IP가 반납되어도 인스턴스 교체를 계획하지 않는다. 중지 후 시작하거나 인스턴스를 다시 만들면 공인 주소가 바뀔 수 있으므로 출력 확인 후 Grafana DNS를 갱신한다.
 
 Lambda 함수 `star23-prod-cloudwatch-loki`의 생성·코드·runtime·환경·VPC/DLQ 부착은 외부 배포가 관리한다. 서버 프로그램·Compose·대시보드·수집 설정·실제 데이터도 외부 운영 범위다.
 

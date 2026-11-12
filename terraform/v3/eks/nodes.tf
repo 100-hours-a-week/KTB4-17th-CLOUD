@@ -8,24 +8,32 @@ locals {
       capacity_type = "ON_DEMAND"
       ami_type      = "AL2023_x86_64_STANDARD"
       desired_size  = 1
+      min_size      = 0
+      max_size      = 1
     }
     general = {
       instance_type = "t3.2xlarge"
       capacity_type = "ON_DEMAND"
       ami_type      = "AL2023_x86_64_STANDARD"
       desired_size  = 1
+      min_size      = 1
+      max_size      = 2
     }
     gpu = {
       instance_type = "g4dn.xlarge"
       capacity_type = "ON_DEMAND"
       ami_type      = "AL2023_x86_64_NVIDIA"
       desired_size  = 0
+      min_size      = 0
+      max_size      = 1
     }
     spot = {
       instance_type = "t3.medium"
       capacity_type = "SPOT"
       ami_type      = "AL2023_x86_64_STANDARD"
       desired_size  = 0
+      min_size      = 0
+      max_size      = 1
     }
   }
 }
@@ -52,8 +60,8 @@ resource "aws_eks_node_group" "main" {
   }
 
   scaling_config {
-    min_size     = 0
-    max_size     = 1
+    min_size     = each.value.min_size
+    max_size     = each.value.max_size
     desired_size = each.value.desired_size
   }
 
