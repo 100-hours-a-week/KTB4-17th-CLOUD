@@ -81,7 +81,7 @@ externalSecret:
     store: ParameterStore
   parameterStoreEnabled: true
 image:
-  digest: sha256:d9bc7106543bdb62d424cf1e0534066a1ca14cb11169fb553cc34fbc6880f87a
+  digest: sha256:12510f395d2c93539592498282eacb18be230e9e0bf22f0a32c5d4eb588f7722
   repository: 975779326240.dkr.ecr.ap-northeast-2.amazonaws.com/star23/be
 # /** External routes
 #  * 외부 AI 연습·시뮬레이션 API는 이 Service로 받고 실제 AI는 위 내부 DNS로 호출한다.

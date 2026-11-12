@@ -79,7 +79,7 @@ externalSecret:
     store: ParameterStore
   parameterStoreEnabled: true
 image:
-  digest: sha256:d9bc7106543bdb62d424cf1e0534066a1ca14cb11169fb553cc34fbc6880f87a
+  digest: sha256:12510f395d2c93539592498282eacb18be230e9e0bf22f0a32c5d4eb588f7722
   repository: 975779326240.dkr.ecr.ap-northeast-2.amazonaws.com/star23/be
 # /** External routes
 #  * WebSocket 연결과 채팅방 HTTP 경로를 같은 Service로 전달한다.
