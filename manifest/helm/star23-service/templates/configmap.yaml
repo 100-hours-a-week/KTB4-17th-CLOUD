@@ -1,5 +1,5 @@
 {{/* ConfigMap
- * 일반 설정을 담고 Deployment의 envFrom과 Pod 교체용 데이터 체크섬에 연결된다.
+ * 일반 설정을 담아 Pod envFrom으로 전달하며, override가 없으면 데이터 해시가 롤아웃을 유도한다.
  */}}
 {{- if .Values.configMap.enabled }}
 apiVersion: v1

@@ -1,4 +1,4 @@
-# /** Persona AI · user/onboarding-persona-ai (star-EKS-v3, Helm 3, 2026-11-10)
+# /** Persona AI · user/onboarding-persona-ai
 #  * 공통 values.yaml 다음에 이 파일 하나를 적용해 역할별 Deployment·Service를 구성한다.
 #  */
 configMap:

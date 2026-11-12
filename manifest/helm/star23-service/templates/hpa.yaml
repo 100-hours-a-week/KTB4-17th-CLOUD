@@ -1,0 +1,38 @@
+{{/* Horizontal Pod Autoscaler
+ * CPU requests 대비 사용률로 같은 릴리스 Deployment의 Pod 수를 조절한다.
+ */}}
+{{- if .Values.autoscaling.enabled }}
+{{- if lt (int .Values.autoscaling.minReplicas) 1 }}
+{{- fail "autoscaling.minReplicas must be at least 1" }}
+{{- end }}
+{{- if lt (int .Values.autoscaling.maxReplicas) (int .Values.autoscaling.minReplicas) }}
+{{- fail "autoscaling.maxReplicas must be greater than or equal to minReplicas" }}
+{{- end }}
+{{- if lt (int .Values.autoscaling.targetCPUUtilizationPercentage) 1 }}
+{{- fail "autoscaling.targetCPUUtilizationPercentage must be positive" }}
+{{- end }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "star23.name" . }}
+  labels:
+    {{- include "star23.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "star23.name" . }}
+  minReplicas: {{ .Values.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
+  {{- with .Values.autoscaling.behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

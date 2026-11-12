@@ -1,8 +1,21 @@
 # /** Service values
-#  * star-EKS-v3의 2026-11-10 배포 기준이며 이 기본값 뒤에 values/<릴리스>.yaml 하나만 적용한다.
+#  * 이 공통 기본값 뒤에 values/<릴리스>.yaml 하나를 적용해 역할별 설정을 완성한다.
 #  */
 nameOverride: ""
 replicaCount: 1
+
+# /** Autoscaling
+#  * 활성화하면 HPA가 CPU 사용률로 Pod 수를 조절하고 Deployment의 replicaCount는 적용하지 않는다.
+#  */
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  # CPU limits가 아닌 requests 대비 평균 CPU 사용률입니다.
+  targetCPUUtilizationPercentage: 80
+  # 필요하면 scaleUp/scaleDown 정책을 앱별로 지정합니다.
+  behavior: {}
+
 
 # /** Image
 #  * Deployment는 역할 파일의 이미지를 사용하며 digest가 있으면 tag보다 우선한다.
@@ -49,6 +62,7 @@ affinity: {}
 #  */
 configMap:
   enabled: true
+  rolloutChecksumOverride: ""
   data: {}
 
 # /** Pod environment

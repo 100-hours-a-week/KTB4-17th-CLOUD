@@ -1,0 +1,6 @@
+{
+  "nodeSelector": {
+    "workload-class": "general"
+  },
+  "replicas": 2
+}

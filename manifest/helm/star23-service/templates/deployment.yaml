@@ -12,7 +12,12 @@ metadata:
   labels:
     {{- include "star23.labels" . | nindent 4 }}
 spec:
+  {{/* Replica ownership
+   * HPA가 꺼져 있을 때만 replicaCount를 적용하고, 켜져 있으면 HPA가 Pod 수를 조절한다.
+   */}}
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ include "star23.name" . }}
@@ -20,11 +25,11 @@ spec:
   template:
     metadata:
       {{/* ConfigMap checksum
-       * 설정 데이터가 바뀌면 Pod template 체크섬도 바뀌어 Pod 교체를 유도한다.
+       * 지정한 override를 우선하고, 없으면 설정 데이터의 해시로 Pod 교체를 판단한다.
        */}}
       {{- if .Values.configMap.enabled }}
       annotations:
-        checksum/config: {{ toYaml .Values.configMap.data | sha256sum | quote }}
+        checksum/config: {{ .Values.configMap.rolloutChecksumOverride | default (toYaml .Values.configMap.data | sha256sum) | quote }}
       {{- end }}
       labels:
         {{- include "star23.labels" . | nindent 8 }}

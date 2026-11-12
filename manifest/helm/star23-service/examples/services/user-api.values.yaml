@@ -21,12 +21,15 @@ ingress:
     - path: "/api/v1/files"
       pathType: Prefix
 # /** Notification delivery
-#  * 알림 생성·outbox relay는 끄고, v3 전용 그룹 접두사로 기존 delivery 토픽의 전달 consumer만 켠다.
+#  * outbox worker와 delivery consumer를 켜고, v3 그룹 접두사로 기존 delivery 토픽을 소비한다.
 #  */
 configMap:
   data:
-    APP_NOTIFICATION_CREATION_ENABLED: "false"
-    APP_NOTIFICATION_OUTBOX_RELAY_ENABLED: "false"
+    APP_NOTIFICATION_OUTBOX_WORKER_ENABLED: "true"
+    APP_NOTIFICATION_DELIVERY_RESULT_TIMEOUT_MS: "15000"
+    APP_NOTIFICATION_OUTBOX_WORKER_FIXED_DELAY_MS: "1000"
+    APP_NOTIFICATION_OUTBOX_WORKER_MAX_REQUESTS_PER_RUN: "100"
+    APP_NOTIFICATION_OUTBOX_WORKER_SHUTDOWN_WAIT_SECONDS: "20"
     APP_NOTIFICATION_DELIVERY_ENABLED: "true"
     APP_NOTIFICATION_DELIVERY_GROUP_ID_PREFIX: "v3-notification-sse-v1"
     NOTIFICATION_DELIVERY_TOPIC: "prod-notification-delivery-v1"

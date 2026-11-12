@@ -102,3 +102,8 @@ variable "task_definition_arn" {
 variable "alb_security_group_id" {
   type = string
 }
+
+variable "migration_policy_arn" {
+  description = "Managed policy granting access to the existing migration parameter ARNs."
+  type        = string
+}

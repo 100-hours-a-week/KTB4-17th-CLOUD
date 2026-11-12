@@ -1,7 +1,11 @@
-# /** User API · user/user-api (star-EKS-v3, Helm 12, 2026-11-10)
-#  * 공통 values.yaml 다음에 이 파일 하나를 적용해 역할별 Deployment·Service를 구성한다.
+# /** User API · user/user-api
+#  * 공통 values.yaml 다음에 적용하는 다음 BE 이미지용 준비값이다.
 #  */
 configMap:
+  # /** Staged rollout
+  #  * 현재 Pod의 체크섬을 유지하며 새 BE 이미지 배포 때 override를 제거해 환경변수를 갱신한다.
+  #  */
+  rolloutChecksumOverride: 25cb96818e0ab3dfc67d35e71a51387e52b2160d717c6465eed8852363d2ffbf
   data:
     # /** Internal AI services
     #  * AI 설정은 chat의 chat-ai-practice·chat-ai-simulation과 user의 image-worker Service를 참조한다.
@@ -15,10 +19,13 @@ configMap:
     APP_FILE_MAX_SIZE_BYTES: '10485760'
     APP_FILE_UPLOAD_INTENT_RETENTION: 30d
     APP_FILE_UPLOAD_INTENT_TTL: 15m
-    APP_NOTIFICATION_CREATION_ENABLED: 'false'
+    APP_NOTIFICATION_OUTBOX_WORKER_ENABLED: 'true'
+    APP_NOTIFICATION_DELIVERY_RESULT_TIMEOUT_MS: '15000'
+    APP_NOTIFICATION_OUTBOX_WORKER_FIXED_DELAY_MS: '1000'
+    APP_NOTIFICATION_OUTBOX_WORKER_MAX_REQUESTS_PER_RUN: '100'
+    APP_NOTIFICATION_OUTBOX_WORKER_SHUTDOWN_WAIT_SECONDS: '20'
     APP_NOTIFICATION_DELIVERY_ENABLED: 'true'
     APP_NOTIFICATION_DELIVERY_GROUP_ID_PREFIX: v3-notification-sse-v1
-    APP_NOTIFICATION_OUTBOX_RELAY_ENABLED: 'false'
     APP_RECOMMENDATION_REFRESH_ZONE: Asia/Seoul
     AUTHORIZATION_URI: https://kauth.kakao.com/oauth/authorize
     AUTH_ALLOWED_ORIGINS: https://star23sharp.com,https://v3.star23sharp.com
@@ -64,7 +71,8 @@ externalSecret:
     secretKey: CLIENT_SECRET
   - remoteRef:
       key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9
-      property: AI_PRACTICE_API_KEY
+      # AI의 INTERNAL_API_KEY와 같은 원본 값을 사용합니다. BE가 읽는 환경변수 이름은 유지합니다.
+      property: AI_INTERNAL_API_KEY
     secretKey: AI_PRACTICE_API_KEY
   - remoteRef:
       key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9

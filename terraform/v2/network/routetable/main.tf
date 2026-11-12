@@ -65,7 +65,7 @@ resource "aws_route_table_association" "application" {
 /**
  * Data routing table
  *
- * 인터넷 기본 경로를 추가하지 않으며, VPC 내부 통신용 local 경로는 AWS가 자동 생성한다.
+ * 2c의 기존 NAT 기본 경로만 보존하며, 2a에는 인터넷 기본 경로를 추가하지 않는다.
  */
 resource "aws_route_table" "data" {
   for_each = var.zones
@@ -82,4 +82,13 @@ resource "aws_route_table_association" "data" {
 
   subnet_id      = var.data_subnet_ids[each.key]
   route_table_id = aws_route_table.data[each.key].id
+}
+
+/** Data subnet NAT route
+ * 기존 2c 경로를 관리하며 V2의 NAT Gateway를 그대로 사용한다.
+ */
+resource "aws_route" "data_nat_2c" {
+  route_table_id         = aws_route_table.data["2c"].id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = var.nat_gateway_id
 }

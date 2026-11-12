@@ -1,6 +1,16 @@
-# /** Recommend API · recommend/recommend-api (star-EKS-v3, Helm 3, 2026-11-10)
+# /** Recommend API · recommend/recommend-api
 #  * 공통 values.yaml 다음에 이 파일 하나를 적용해 역할별 Deployment·Service를 구성한다.
 #  */
+# /** Autoscaling
+#  * HPA가 Pod 수를 조절하며 축소에는 300초 안정화 기간을 적용한다.
+#  */
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
 configMap:
   data:
     # /** Internal AI services
@@ -59,7 +69,8 @@ externalSecret:
     secretKey: CLIENT_SECRET
   - remoteRef:
       key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9
-      property: AI_PRACTICE_API_KEY
+      # AI의 INTERNAL_API_KEY와 같은 원본 값을 사용합니다. BE가 읽는 환경변수 이름은 유지합니다.
+      property: AI_INTERNAL_API_KEY
     secretKey: AI_PRACTICE_API_KEY
   - remoteRef:
       key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9

@@ -6,8 +6,11 @@
 | --- | --- | --- |
 | [`terraform/common`](terraform/common/README.md) | `common/terraform.tfstate` | 공통 CloudFront·S3·ECR |
 | [`terraform/v1`](terraform/v1/README.md) | `dev/terraform.tfstate` | V1 EC2·네트워크 |
-| [`terraform/v2`](terraform/v2/README.md) | `prod/terraform.tfstate` | V2 네트워크·ALB·ECS·RDS·IAM |
+| [`terraform/v2`](terraform/v2/README.md) | `prod/terraform.tfstate` | V2 네트워크·ALB·ECS·IAM |
 | [`terraform/v2/cloudwatch`](terraform/v2/cloudwatch/README.md) | `prod/cloudwatch-loki/terraform.tfstate` | V2 모니터링 EC2·SG·로그 전달 기반 |
+| [`terraform/v3`](terraform/v3/README.md) | `v3/terraform.tfstate` | EKS·RDS·전용 subnet·접근 규칙·IAM |
+
+VPC·NAT·공유 subnet은 V2가 소유하고 V3가 참조한다. RDS의 실제 관리 소유권은 V3에 있으며 V2의 DB 모듈 소스는 기록용으로 보관한다.
 
 ## 관리 범위
 
@@ -16,6 +19,7 @@
 | VPC·subnet·라우팅·NAT·SG | — |
 | EC2·EBS·ALB·대상 그룹 | 서버 프로그램 설치·앱 배포 |
 | ECS cluster·service·Service Connect 네트워크 | Task definition·컨테이너 이미지·실행 수 |
+| EKS cluster·managed nodegroup·AWS addon·접근 권한 | Helm·Argo CD·앱 배포·실행 노드 수 조정 |
 | RDS·스토리지·백업·접근 규칙 | 테이블·스키마·데이터 |
 | S3 버킷·ECR 저장소·접근 정책 | 업로드 파일·컨테이너 이미지 |
 | IAM 역할·정책·Secret 저장소 | 실제 비밀번호·토큰·SSM 앱 설정값 |

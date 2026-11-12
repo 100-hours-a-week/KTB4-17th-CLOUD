@@ -1,4 +1,4 @@
-# /** Face certify AI · user/onboarding-face-certify-ai (star-EKS-v3, Helm 1, 2026-11-10)
+# /** Face certify AI · user/onboarding-face-certify-ai
 #  * 공통 values.yaml 다음에 이 파일 하나를 적용해 역할별 Deployment·Service를 구성한다.
 #  */
 configMap:

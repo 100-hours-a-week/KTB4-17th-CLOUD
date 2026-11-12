@@ -18,6 +18,13 @@ spec:
     # Argo CD도 star-EKS-v3에 설치하는 구성입니다.
     server: https://kubernetes.default.svc
     namespace: recommend
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: recommend-api
+      namespace: recommend
+      jsonPointers:
+        - /spec/replicas
   syncPolicy:
     automated:
       enabled: true
@@ -26,6 +33,7 @@ spec:
       allowEmpty: false
     syncOptions:
       - FailOnSharedResource=true
+      - RespectIgnoreDifferences=true
     retry:
       limit: 5
       backoff:

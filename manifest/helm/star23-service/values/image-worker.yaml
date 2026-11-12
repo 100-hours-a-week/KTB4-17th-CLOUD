@@ -1,4 +1,4 @@
-# /** Image worker · user/image-worker (star-EKS-v3, Helm 3, 2026-11-10)
+# /** Image worker · user/image-worker
 #  * 공통 values.yaml 다음에 이 파일 하나를 적용해 역할별 Deployment·Service를 구성한다.
 #  */
 configMap:
