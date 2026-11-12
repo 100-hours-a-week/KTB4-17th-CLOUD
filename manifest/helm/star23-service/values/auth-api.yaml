@@ -28,7 +28,7 @@ configMap:
     AWS_S3_REGION: ap-northeast-2
     AWS_S3_UPLOAD_URL_EXPIRATION: 10m
     CLIENT_ID: 3f583bf72a7da5ecc954a04a5c291405
-    DB_URL: jdbc:mysql://star23-v2-prod-mysql.c7wkoseo8zgf.ap-northeast-2.rds.amazonaws.com:3306/star23_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    DB_URL: jdbc:mysql://star23-v2-prod-mysql.c7wkoseo8zgf.ap-northeast-2.rds.amazonaws.com:3306/star23_db?serverTimezone=UTC&characterEncoding=UTF-8
     DB_USERNAME: star23
     FLYWAY_ENABLED: 'true'
     JPA_FORMAT_SQL: 'false'

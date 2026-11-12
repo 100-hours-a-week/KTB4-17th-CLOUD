@@ -40,7 +40,7 @@ configMap:
     SPRING_PROFILES_ACTIVE: prod
     JPA_FORMAT_SQL: "false"
     FLYWAY_ENABLED: "true"
-    DB_URL: "jdbc:mysql://star23-v2-prod-mysql.c7wkoseo8zgf.ap-northeast-2.rds.amazonaws.com:3306/star23_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8"
+    DB_URL: "jdbc:mysql://star23-v2-prod-mysql.c7wkoseo8zgf.ap-northeast-2.rds.amazonaws.com:3306/star23_db?serverTimezone=UTC&characterEncoding=UTF-8"
     DB_USERNAME: "star23"
     KAFKA_BOOTSTRAP_SERVERS: "10.1.22.118:9092,10.1.22.118:9094,10.1.22.118:9095"
     APP_FILE_ALLOWED_MIME_TYPES: "image/jpeg,image/png,image/webp"
