@@ -72,6 +72,10 @@ externalSecret:
       key: "/star23/prod/migration/kafka-redis/ws/REDIS_URL"
     secretKey: PROFILE_CACHE_REDIS_URL
     store: ParameterStore
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9
+      property: AI_CHAT_DELEGATION_API_KEY
+    secretKey: AI_CHAT_DELEGATION_API_KEY
   parameterStoreEnabled: true
 image:
   digest: sha256:d9bc7106543bdb62d424cf1e0534066a1ca14cb11169fb553cc34fbc6880f87a
