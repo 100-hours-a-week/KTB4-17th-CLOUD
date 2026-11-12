@@ -17,7 +17,7 @@ resource "aws_cloudfront_distribution" "fe" {
     prevent_destroy = true
   }
 
-  aliases             = ["star23sharp.com", "dev.star23sharp.com", "api.star23sharp.com", "grafana.star23sharp.com", "stag.star23sharp.com", "v3.star23sharp.com"]
+  aliases             = ["star23sharp.com", "dev.star23sharp.com", "api.star23sharp.com", "grafana.star23sharp.com", "stag.star23sharp.com"]
   anycast_ip_list_id  = null
   comment             = null
   default_root_object = "index.html"

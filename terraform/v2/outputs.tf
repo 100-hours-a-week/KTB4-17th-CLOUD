@@ -20,22 +20,22 @@ output "additional_ecs_security_group_ids" {
 
 output "mysql_address" {
   description = "MySQL hostname in the application VPC"
-  value       = module.database.mysql_address
+  value       = data.aws_db_instance.mysql.address
 }
 
 output "mysql_master_user_secret_arn" {
   description = "Secrets Manager secret holding the MySQL master credentials"
-  value       = module.database.mysql_master_user_secret_arn
+  value       = data.aws_db_instance.mysql.master_user_secret[0].secret_arn
 }
 
 output "postgres_address" {
   description = "PostgreSQL hostname in the application VPC"
-  value       = module.database.postgres_address
+  value       = data.aws_db_instance.postgres.address
 }
 
 output "postgres_master_user_secret_arn" {
   description = "Secrets Manager secret holding the PostgreSQL master credentials"
-  value       = module.database.postgres_master_user_secret_arn
+  value       = data.aws_db_instance.postgres.master_user_secret[0].secret_arn
 }
 
 output "deployment_infrastructure" {
@@ -50,5 +50,24 @@ output "deployment_infrastructure" {
     config_references = module.be.config_references
     be_repository_url = data.terraform_remote_state.common.outputs.be_repository_url
     ai_repository_url = data.terraform_remote_state.common.outputs.ai_repository_url
+  }
+}
+
+output "network" {
+  description = "V2-owned network shared with the V3 EKS cluster and databases."
+  value = {
+    vpc_id            = module.network.vpc_id
+    nat_gateway_id    = module.network.nat_gateway_id
+    public_subnet_ids = module.network.public_subnet_ids
+    data_subnet_ids   = module.network.data_subnet_ids
+  }
+}
+
+output "ecs_security_group_ids" {
+  description = "V2 service security groups referenced by V3 database access rules."
+  value = {
+    be = module.be.security_group_id
+    ai = module.ai.security_group_id
+    ws = module.ws.security_group_id
   }
 }

@@ -42,7 +42,11 @@ resource "aws_instance" "monitoring" {
     managed_by  = "terraform"
   }
 
+  /** Public IPv4 lifecycle
+   * 중지 중 공인 IP 반납이 인스턴스 교체를 유발하지 않도록 한다.
+   */
   lifecycle {
     prevent_destroy = true
+    ignore_changes  = [associate_public_ip_address]
   }
 }

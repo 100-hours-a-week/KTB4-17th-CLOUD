@@ -116,3 +116,45 @@ resource "aws_iam_role_policy" "be_s3" {
     }]
   })
 }
+
+/** BE Kafka and Redis permissions
+ * 기존 파라미터 ARN과 KMS 조건만 보존하며 실제 앱 설정값은 읽지 않는다.
+ */
+resource "aws_iam_role_policy" "kafka_redis_parameters" {
+  name = "Star23ProdKafkaRedisParameters"
+  role = aws_iam_role.ecs_execution.id
+  policy = jsonencode({
+    "Version" : "2012-10-17",
+    "Statement" : [
+      {
+        "Sid" : "ReadProdBeKafkaRedisParameters",
+        "Effect" : "Allow",
+        "Action" : "ssm:GetParameters",
+        "Resource" : [
+          "arn:aws:ssm:ap-northeast-2:975779326240:parameter/star23/prod/migration/kafka-redis/be/KAFKA_BOOTSTRAP_SERVERS",
+          "arn:aws:ssm:ap-northeast-2:975779326240:parameter/star23/prod/migration/kafka-redis/be/REDIS_URL"
+        ]
+      },
+      {
+        "Sid" : "DecryptProdBeRedisUrl",
+        "Effect" : "Allow",
+        "Action" : "kms:Decrypt",
+        "Resource" : "arn:aws:kms:ap-northeast-2:975779326240:key/c46fdb44-b0c9-4743-aad9-a71eab8d5ff9",
+        "Condition" : {
+          "StringEquals" : {
+            "kms:ViaService" : "ssm.ap-northeast-2.amazonaws.com",
+            "kms:EncryptionContext:PARAMETER_ARN" : "arn:aws:ssm:ap-northeast-2:975779326240:parameter/star23/prod/migration/kafka-redis/be/REDIS_URL"
+          }
+        }
+      }
+    ]
+  })
+}
+
+/** BE migration policy attachment
+ * 공유 마이그레이션 정책을 현재 실행 역할에 연결하며 Secret·SSM 값은 관리하지 않는다.
+ */
+resource "aws_iam_role_policy_attachment" "migration_runtime_parameters" {
+  role       = aws_iam_role.ecs_execution.name
+  policy_arn = var.migration_policy_arn
+}

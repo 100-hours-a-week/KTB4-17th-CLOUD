@@ -35,26 +35,6 @@ module "alb" {
 }
 
 /**
- * Databases
- */
-module "database" {
-  source = "./database"
-
-  name_prefix = local.name_prefix
-  environment = local.environment
-  vpc_version = local.version
-
-  vpc_id          = module.network.vpc_id
-  data_subnet_ids = module.network.data_subnet_ids
-  mysql_port      = local.mysql_port
-  postgres_port   = local.postgres_port
-
-  be_security_group_id = module.be.security_group_id
-  ws_security_group_id = module.ws.security_group_id
-  ai_security_group_id = module.ai.security_group_id
-}
-
-/**
  * ECS cluster
  */
 module "cluster" {
@@ -80,7 +60,6 @@ module "ai" {
   namespace_arn        = module.cluster.namespace_arn
   be_security_group_id = module.be.security_group_id
   ws_security_group_id = module.ws.security_group_id
-  traffic_rule_ids     = module.database.ai_rule_ids
 
   ai_secrets                          = var.ai_access.secrets
   ai_secret_kms_key_arns              = var.ai_access.kms_key_arns
@@ -108,11 +87,12 @@ module "be" {
   be_target_group_arn          = module.alb.be_target_group_arn
   ai_service_name              = module.ai.service_name
   monitoring_security_group_id = var.monitoring_security_group_id
-  traffic_rule_ids             = concat(module.alb.egress_rule_ids, module.database.be_rule_ids, module.ai.ingress_rule_ids)
+  traffic_rule_ids             = concat(module.alb.egress_rule_ids, module.ai.ingress_rule_ids)
 
   image_bucket_arn       = data.terraform_remote_state.common.outputs.image_bucket_arn
   be_secrets             = var.be_access.secrets
   be_parameter_arns      = var.be_access.parameter_arns
+  migration_policy_arn   = aws_iam_policy.migration_runtime_parameters.arn
   be_secret_kms_key_arns = var.be_access.kms_key_arns
 
   services_enabled    = var.services_enabled
@@ -136,13 +116,14 @@ module "ws" {
   alb_security_group_id        = module.alb.alb_security_group_id
   ws_target_group_arn          = module.alb.ws_target_group_arn
   monitoring_security_group_id = var.monitoring_security_group_id
-  traffic_rule_ids             = concat(module.alb.egress_rule_ids, module.database.ws_rule_ids, module.ai.ingress_rule_ids)
+  traffic_rule_ids             = concat(module.alb.egress_rule_ids, module.ai.ingress_rule_ids)
 
   image_bucket_arn          = data.terraform_remote_state.common.outputs.image_bucket_arn
   backend_config_references = module.be.config_references
   backend_kms_key_arns      = var.be_access.kms_key_arns
   ws_secrets                = var.ws_access.secrets
   ws_secret_kms_key_arns    = var.ws_access.kms_key_arns
+  migration_policy_arn      = aws_iam_policy.migration_runtime_parameters.arn
 
   ws_enabled            = var.ws_infrastructure.enabled
   ws_use_backend_config = var.ws_infrastructure.use_backend_config
