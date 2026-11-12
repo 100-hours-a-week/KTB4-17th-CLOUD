@@ -1,4 +1,6 @@
-# HTTP role overlay on examples/ai.values.yaml; runs the unchanged full application image.
+# /** Chat AI Simulation example
+#  * ai.values.yaml 뒤에 적용하는 chat/chat-ai-simulation 역할 예제이며, secrets/ai.values.yaml을 마지막에 합친다.
+#  */
 nameOverride: chat-ai-simulation
 service:
   enabled: true

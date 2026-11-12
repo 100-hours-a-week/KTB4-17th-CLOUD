@@ -1,4 +1,6 @@
-# Layer on examples/ai.values.yaml; this names the role-specific ClusterIP Service.
+# /** Onboarding Face Certify AI example
+#  * ai.values.yaml 뒤에 적용하는 user/onboarding-face-certify-ai 역할 예제이며, secrets/ai.values.yaml을 마지막에 합친다.
+#  */
 nameOverride: onboarding-face-certify-ai
 service:
   enabled: true

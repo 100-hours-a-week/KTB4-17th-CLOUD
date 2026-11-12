@@ -1,4 +1,6 @@
-# Layer on examples/backend.values.yaml; this names the role-specific ClusterIP Service.
+# /** Onboarding API example
+#  * backend.values.yaml 뒤에 적용하는 user/onboarding-api 역할 예제이며, secrets/backend.values.yaml을 마지막에 합친다.
+#  */
 nameOverride: onboarding-api
 service:
   enabled: true
@@ -22,10 +24,14 @@ ingress:
       pathType: Prefix
     - path: "/api/v1/activity-regions"
       pathType: Prefix
+# /** Internal persona service
+#  * Persona·Kakao 요청은 user 네임스페이스의 onboarding-persona-ai Service를 8000 포트로 호출한다.
+#  */
 configMap:
   data:
     AI_PERSONA_BASE_URL: "http://onboarding-persona-ai.user.svc.cluster.local:8000"
     AI_KAKAO_BASE_URL: "http://onboarding-persona-ai.user.svc.cluster.local:8000"
-    # The deployed BE image uses this existing variable for profile-trust AI calls.
-    # This full AI image also serves practice paths if this release invokes them.
+    # /** Profile trust endpoint
+    #  * 기존 BE는 이 변수를 프로필 검증에도 쓰며, image-worker의 전체 AI 이미지는 practice 경로도 처리한다.
+    #  */
     AI_PRACTICE_BASE_URL: "http://image-worker.user.svc.cluster.local:8000"

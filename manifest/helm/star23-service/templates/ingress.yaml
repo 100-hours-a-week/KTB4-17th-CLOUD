@@ -1,3 +1,6 @@
+{{/* Ingress
+ * 호스트와 경로를 같은 이름의 Service에 있는 http 포트로 연결한다.
+ */}}
 {{- if .Values.ingress.enabled }}
 {{- if not .Values.service.enabled }}{{ fail "ingress.enabled requires service.enabled" }}{{ end }}
 apiVersion: networking.k8s.io/v1
@@ -6,6 +9,9 @@ metadata:
   name: {{ include "star23.name" . }}
   labels:
     {{- include "star23.labels" . | nindent 4 }}
+  {{/* Shared ALB
+   * ALB Controller가 group.name이 같은 Ingress를 한 ALB에 모으고 인증서·헬스체크를 설정한다.
+   */}}
   annotations:
     alb.ingress.kubernetes.io/group.name: {{ .Values.ingress.groupName | quote }}
     alb.ingress.kubernetes.io/group.order: {{ .Values.ingress.groupOrder | quote }}

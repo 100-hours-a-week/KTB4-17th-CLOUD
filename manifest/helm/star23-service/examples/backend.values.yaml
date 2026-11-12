@@ -1,4 +1,6 @@
-# Existing Spring Boot code and image; this release does not split domains.
+# /** Backend example
+#  * 전체 Spring 이미지를 쓰는 공통 참고값이며 역할→Secret 예제를 뒤에 합친다. 현재 배포는 values/를 사용한다.
+#  */
 nameOverride: backend
 image:
   repository: 975779326240.dkr.ecr.ap-northeast-2.amazonaws.com/star23/be
@@ -34,6 +36,9 @@ ingress:
   groupOrder: 1
   healthcheckPath: /actuator/health
 
+# /** Shared v2 configuration
+#  * v2 RDS·Kafka·S3를 공유하며, 비밀 없는 앱 설정은 ConfigMap으로 Pod에 주입한다.
+#  */
 configMap:
   enabled: true
   data:
@@ -67,6 +72,9 @@ configMap:
     TOKEN_URI: "https://kauth.kakao.com/oauth/token"
     USER_INFO_URI: "https://kapi.kakao.com/v2/user/me"
     AUTH_COOKIE_SECURE: "true"
+    # /** Internal AI services
+    #  * chat 네임스페이스의 practice·simulation Service를 8000 포트로 호출한다.
+    #  */
     AI_PRACTICE_BASE_URL: "http://chat-ai-practice.chat.svc.cluster.local:8000"
     AI_SIMULATION_BASE_URL: "http://chat-ai-simulation.chat.svc.cluster.local:8000"
     APP_RECOMMENDATION_REFRESH_ZONE: Asia/Seoul

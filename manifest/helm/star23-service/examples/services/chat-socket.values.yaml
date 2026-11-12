@@ -1,11 +1,15 @@
-# Layer on examples/websocket.values.yaml; this names the role-specific ClusterIP Service.
+# /** Chat Socket example
+#  * websocket.values.yaml 뒤에 적용하는 chat/chat-socket 역할 예제이며, secrets/websocket.values.yaml을 마지막에 합친다.
+#  */
 nameOverride: chat-socket
 service:
   enabled: true
   port: 8080
 ingress:
   enabled: true
-  # Chat REST endpoints and WebSocket share the chat-socket runtime.
+  # /** Chat routes
+  #  * 채팅 REST와 WebSocket 요청을 같은 chat-socket Service로 전달한다.
+  #  */
   paths:
     - path: "/api/v1/chat-rooms"
       pathType: Prefix
@@ -14,5 +18,8 @@ ingress:
 configMap:
   data:
     APP_CHAT_RUNTIME_ENABLED: "true"
+    # /** Internal AI services
+    #  * chat 네임스페이스의 practice Service로 연습 요청을, cleanup Service로 채팅 위임 요청을 보낸다.
+    #  */
     AI_PRACTICE_BASE_URL: http://chat-ai-practice.chat.svc.cluster.local:8000
     AI_CHAT_DELEGATION_BASE_URL: http://chat-ai-cleanup.chat.svc.cluster.local:8000

@@ -1,4 +1,6 @@
-# Layer on examples/backend.values.yaml; this names the role-specific ClusterIP Service.
+# /** Chat API example
+#  * backend.values.yaml 뒤에 적용하는 chat/chat-api 역할 예제이며, secrets/backend.values.yaml을 마지막에 합친다.
+#  */
 nameOverride: chat-api
 service:
   enabled: true
@@ -12,6 +14,7 @@ ingress:
       pathType: Prefix
 configMap:
   data:
-    # Enabling runtime also starts the current image's Kafka relay with the v2 consumer group.
-    # Keep false until that group is isolated and the chat API rollout is validated.
+    # /** Chat runtime guard
+    #  * 켜면 v2와 같은 Kafka 소비 그룹의 릴레이도 실행되므로, 그룹 격리와 배포 확인 전에는 false를 유지한다.
+    #  */
     APP_CHAT_RUNTIME_ENABLED: "false"

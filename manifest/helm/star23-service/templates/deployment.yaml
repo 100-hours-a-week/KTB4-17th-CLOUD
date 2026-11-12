@@ -1,3 +1,6 @@
+{{/* Deployment
+ * values의 이미지로 Pod를 만들며 Service와 이름·릴리스 라벨로 연결된다.
+ */}}
 {{- $repository := required "image.repository must be set" .Values.image.repository -}}
 {{- if and (not .Values.image.tag) (not .Values.image.digest) }}{{ fail "image.tag or image.digest must be set" }}{{ end -}}
 {{- $image := printf "%s:%s" $repository .Values.image.tag -}}
@@ -9,6 +12,9 @@ metadata:
   labels:
     {{- include "star23.labels" . | nindent 4 }}
 spec:
+  {{/* Replica ownership
+   * HPA가 꺼져 있을 때만 replicaCount를 적용하고, 켜져 있으면 HPA가 Pod 수를 조절한다.
+   */}}
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
@@ -18,6 +24,9 @@ spec:
       app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
+      {{/* ConfigMap checksum
+       * 지정한 override를 우선하고, 없으면 설정 데이터의 해시로 Pod 교체를 판단한다.
+       */}}
       {{- if .Values.configMap.enabled }}
       annotations:
         checksum/config: {{ .Values.configMap.rolloutChecksumOverride | default (toYaml .Values.configMap.data | sha256sum) | quote }}
@@ -28,6 +37,9 @@ spec:
         app.kubernetes.io/version: {{ .Values.image.tag | trunc 63 | quote }}
         {{- end }}
     spec:
+      {{/* Pod ServiceAccount
+       * 앱 Pod의 계정을 선택하며, Secret 조회에 쓰는 ESO 컨트롤러 계정과는 별개다.
+       */}}
       {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ include "star23.name" . }}
       {{- else if .Values.serviceAccountName }}
@@ -65,6 +77,9 @@ spec:
           env:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{/* Configuration sources
+           * ConfigMap과 ESO가 만든 Secret, 추가 envFrom을 컨테이너 환경변수로 읽는다.
+           */}}
           {{- if or .Values.configMap.enabled .Values.externalSecret.enabled .Values.envFrom }}
           envFrom:
             {{- if .Values.configMap.enabled }}
