@@ -2,5 +2,8 @@
   "nodeSelector": {
     "workload-class": "general"
   },
-  "replicas": 2
+  "replicas": 2,
+  "podAnnotations": {
+    "cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes": "tmp"
+  }
 }
