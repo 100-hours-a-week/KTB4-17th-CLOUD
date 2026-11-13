@@ -1,0 +1,127 @@
+# Staging-only values. Preserve independent credentials, image and runtime configuration.
+configMap:
+  data:
+    AI_PRACTICE_BASE_URL: http://chat-ai-practice.chat.svc.cluster.local:8000
+    AI_PROFILE_TRUST_BASE_URL: http://image-worker.user.svc.cluster.local:8000
+    AI_SIMULATION_BASE_URL: http://chat-ai-simulation.chat.svc.cluster.local:8000
+    APP_CHAT_RUNTIME_ENABLED: 'false'
+    APP_FILE_ALLOWED_MIME_TYPES: image/jpeg,image/png,image/webp
+    APP_FILE_CLEANUP_BATCH_SIZE: '50'
+    APP_FILE_CLEANUP_DELAY_MS: '300000'
+    APP_FILE_MAX_SIZE_BYTES: '10485760'
+    APP_FILE_UPLOAD_INTENT_RETENTION: 30d
+    APP_FILE_UPLOAD_INTENT_TTL: 15m
+    APP_RECOMMENDATION_REFRESH_ZONE: Asia/Seoul
+    AUTHORIZATION_URI: https://kauth.kakao.com/oauth/authorize
+    AUTH_ALLOWED_ORIGINS: https://dev.star23sharp.com
+    AUTH_COOKIE_SAME_SITE: Lax
+    AUTH_COOKIE_SECURE: 'true'
+    AUTH_ONBOARDING_REDIRECT_URI: https://dev.star23sharp.com/onboarding
+    AUTH_REGISTRATION_REDIRECT_URI: https://dev.star23sharp.com/registration
+    AUTH_SERVICE_REDIRECT_URI: https://dev.star23sharp.com/home
+    AWS_S3_BUCKET: star23-dev-images
+    AWS_S3_DOWNLOAD_URL_EXPIRATION: 5m
+    AWS_S3_REGION: ap-northeast-2
+    AWS_S3_UPLOAD_URL_EXPIRATION: 10m
+    CLIENT_ID: ''
+    DB_URL: jdbc:mysql://10.2.21.10:3306/star23_staging?serverTimezone=UTC&characterEncoding=UTF-8
+    DB_USERNAME: star23staging
+    FLYWAY_ENABLED: 'true'
+    JPA_FORMAT_SQL: 'false'
+    JWT_PENDING_EXPIRATION_MINUTES: '10'
+    JWT_SERVICE_EXPIRATION_MINUTES: '15'
+    KAFKA_BOOTSTRAP_SERVERS: 10.2.21.20:9092,10.2.21.20:9094,10.2.21.20:9095
+    KAKAO_TALK_PROFILE_URI: https://kapi.kakao.com/v1/api/talk/profile
+    REDIRECT_URI: https://dev.star23sharp.com/api/v1/auth/kakao/callback
+    SPRING_PROFILES_ACTIVE: prod
+    TOKEN_URI: https://kauth.kakao.com/oauth/token
+    USER_INFO_URI: https://kapi.kakao.com/v2/user/me
+    AI_SIMULATION_KAFKA_COMPLETED_TOPIC: staging-ai-simulation-completed
+    AI_SIMULATION_KAFKA_CONCURRENCY: '2'
+    AI_SIMULATION_KAFKA_GENERATION_ENABLED: 'true'
+    AI_SIMULATION_KAFKA_GENERATION_GROUP_ID: staging-ai-simulation-generation
+    AI_SIMULATION_KAFKA_MIN_INSYNC_REPLICAS: '2'
+    AI_SIMULATION_KAFKA_PARTITIONS: '4'
+    AI_SIMULATION_KAFKA_RECOMMENDATION_ENABLED: 'false'
+    AI_SIMULATION_KAFKA_RECOMMENDATION_GROUP_ID: staging-ai-simulation-recommendation
+    AI_SIMULATION_KAFKA_REPLICATION_FACTOR: '3'
+    AI_SIMULATION_KAFKA_REQUESTED_TOPIC: staging-ai-simulation-requested
+    AI_SIMULATION_KAFKA_REQUESTER_NOTIFICATION_ENABLED: 'false'
+    AI_SIMULATION_KAFKA_REQUESTER_NOTIFICATION_GROUP_ID: staging-ai-simulation-requester-notification
+    AI_SIMULATION_KAFKA_REQUEST_NOTIFICATION_ENABLED: 'false'
+    AI_SIMULATION_KAFKA_REQUEST_NOTIFICATION_GROUP_ID: staging-ai-simulation-request-notification
+    AI_SIMULATION_KAFKA_TARGET_NOTIFICATION_ENABLED: 'false'
+    AI_SIMULATION_KAFKA_TARGET_NOTIFICATION_GROUP_ID: staging-ai-simulation-target-notification
+    APP_NOTIFICATION_CHAT_MESSAGE_ENABLED: 'false'
+    APP_NOTIFICATION_DELIVERY_ENABLED: 'false'
+    APP_NOTIFICATION_OUTBOX_WORKER_ENABLED: 'false'
+  rolloutChecksumOverride: ''
+externalSecret:
+  data:
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/staging/be-7I1aE0
+      property: DB_PASSWORD
+    secretKey: DB_PASSWORD
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/staging/be-7I1aE0
+      property: JWT_SECRET
+    secretKey: JWT_SECRET
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/staging/be-7I1aE0
+      property: CLIENT_SECRET
+    secretKey: CLIENT_SECRET
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/staging/be-7I1aE0
+      property: AI_INTERNAL_API_KEY
+    secretKey: AI_PRACTICE_API_KEY
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/staging/be-7I1aE0
+      property: AI_PRACTICE_CALLBACK_SECRET
+    secretKey: AI_PRACTICE_CALLBACK_SECRET
+  - remoteRef:
+      key: /star23/v3/staging/kafka-redis/be/REDIS_URL
+    secretKey: REDIS_URL
+    store: ParameterStore
+  - remoteRef:
+      key: /star23/v3/staging/kafka-redis/be/REDIS_URL
+    secretKey: SPRING_DATA_REDIS_URL
+    store: ParameterStore
+  - remoteRef:
+      key: /star23/v3/staging/kafka-redis/be/REDIS_URL
+    secretKey: PROFILE_CACHE_REDIS_URL
+    store: ParameterStore
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/staging/be-7I1aE0
+      property: CLIENT_ID
+    secretKey: CLIENT_ID
+  parameterStoreEnabled: true
+image:
+  digest: sha256:168a8698929b20ac57b334dc8e853d5081006b4f949e35a6122232601263c1e3
+  repository: 975779326240.dkr.ecr.ap-northeast-2.amazonaws.com/star23/be
+  tag: ''
+ingress:
+  certificateArn: arn:aws:acm:ap-northeast-2:975779326240:certificate/13083ecf-f79a-4b35-b17f-5e134d1eb6b8
+  enabled: true
+  paths:
+  - path: /api/v1/ai-practice
+    pathType: Prefix
+  - path: /api/v1/ai-simulations
+    pathType: Prefix
+  groupName: star23-v3-staging
+  host: v3-staging.star23sharp.com
+  listenPorts: '[{"HTTP":80},{"HTTPS":443}]'
+labels:
+  framework: spring
+  team: backend
+  environment: staging
+nameOverride: chat-api
+resources:
+  requests:
+    cpu: 500m
+    memory: 2Gi
+  limits:
+    cpu: '2'
+    memory: 4Gi
+nodeSelector:
+  workload-class: general
+replicaCount: 1

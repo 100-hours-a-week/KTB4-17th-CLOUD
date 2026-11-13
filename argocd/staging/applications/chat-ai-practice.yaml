@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: chat-ai-practice
+  namespace: argocd
+spec:
+  destination:
+    namespace: chat
+    server: https://kubernetes.default.svc
+  project: star23-apps
+  source:
+    helm:
+      releaseName: chat-ai-practice
+      valueFiles:
+      - values/staging/chat-ai-practice.yaml
+    path: manifest/helm/star23-service
+    repoURL: https://github.com/100-hours-a-week/KTB4-17th-CLOUD.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      allowEmpty: false
+      enabled: true
+      prune: true
+      selfHeal: true
+    retry:
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+      limit: 5
+    syncOptions:
+    - FailOnSharedResource=true

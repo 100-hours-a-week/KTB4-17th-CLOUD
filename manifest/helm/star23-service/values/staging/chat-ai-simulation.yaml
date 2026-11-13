@@ -1,0 +1,75 @@
+# Staging-only values. Preserve independent credentials, image and runtime configuration.
+configMap:
+  data:
+    DB_ECHO: 'false'
+    GUARDRAIL_ENFORCE_PERCENT: '100'
+    GUARDRAIL_MODE: shadow
+    LLM_BASE_URL: https://openrouter.ai/api/v1
+    LLM_MODEL_V2: google/gemini-3.1-flash-lite
+    LLM_MODEL: google/gemini-3.1-flash-lite
+  rolloutChecksumOverride: ''
+containerPort: 8000
+externalSecret:
+  data:
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/staging/be-7I1aE0
+      property: AI_DATABASE_URL
+    secretKey: DATABASE_URL
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/staging/be-7I1aE0
+      property: AI_INTERNAL_API_KEY
+    secretKey: INTERNAL_API_KEY
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/staging/be-7I1aE0
+      property: AI_LANGFUSE_PUBLIC_KEY
+    secretKey: LANGFUSE_PUBLIC_KEY
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/staging/be-7I1aE0
+      property: AI_LANGFUSE_SECRET_KEY
+    secretKey: LANGFUSE_SECRET_KEY
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/staging/be-7I1aE0
+      property: AI_LLM_API_KEY
+    secretKey: LLM_API_KEY
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/staging/be-7I1aE0
+      property: AI_SENTRY_DSN
+    secretKey: SENTRY_DSN
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/staging/ai/slm-api-key-7I1aE0
+      property: vllm_api_key
+    secretKey: SLM_API_KEY
+image:
+  digest: sha256:4aab3f57df914bcbb6e189879d2c7c3cdc191ddd6125771d96c666fc0b35dd74
+  repository: 975779326240.dkr.ecr.ap-northeast-2.amazonaws.com/star23/ai
+  tag: ''
+labels:
+  component: ai-server
+  framework: fastapi
+  team: ai
+  environment: staging
+nameOverride: chat-ai-simulation
+probes:
+  liveness:
+    initialDelaySeconds: 30
+    path: /health
+  readiness:
+    path: /health
+resources:
+  limits:
+    cpu: '1'
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+service:
+  port: 8000
+serviceAccount:
+  create: false
+ingress:
+  groupName: star23-v3-staging
+  host: v3-staging.star23sharp.com
+  listenPorts: '[{"HTTP":80},{"HTTPS":443}]'
+nodeSelector:
+  workload-class: general
+replicaCount: 1

@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: onboarding-persona-ai
+  namespace: argocd
+spec:
+  destination:
+    namespace: user
+    server: https://kubernetes.default.svc
+  project: star23-apps
+  source:
+    helm:
+      releaseName: onboarding-persona-ai
+      valueFiles:
+      - values/staging/onboarding-persona-ai.yaml
+    path: manifest/helm/star23-service
+    repoURL: https://github.com/100-hours-a-week/KTB4-17th-CLOUD.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      allowEmpty: false
+      enabled: true
+      prune: true
+      selfHeal: true
+    retry:
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+      limit: 5
+    syncOptions:
+    - FailOnSharedResource=true
