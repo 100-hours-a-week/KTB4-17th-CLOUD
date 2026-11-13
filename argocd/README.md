@@ -1,6 +1,6 @@
 # STAR23 v3 Argo CD 연결
 
-현재 앱 차트와 역할별 기본값을 Argo CD Application 12개에 연결한다. Argo CD는 `star-EKS-v3` 안에 설치하며, 기존 Helm 릴리스 이름과 Namespace를 유지한다. 이 디렉터리를 저장하거나 커밋하는 것만으로 클러스터에 Argo CD가 설치되거나 Application이 등록되지는 않는다.
+prod와 staging은 각자 EKS 안의 기존 Argo CD를 사용한다. 각 환경의 Application 12개는 기존 Helm 릴리스 이름과 Namespace를 유지한다. prod 등록 진입점은 `argocd`, staging은 `argocd/staging`이다. 이 디렉터리를 저장하거나 커밋하는 것만으로 클러스터에 Argo CD가 설치되거나 Application이 등록되지는 않는다.
 
 2026-11-10의 실제 설치 명령·결과·오류 해결과 앱 등록 기록은 [설치 및 앱 등록 기록](INSTALLATION.md)에 정리했다. Argo CD 설치와 Application 12개 생성은 확인됐고, 제공된 등록 직후 상태는 `Unknown / Healthy`여서 Git 동기화 완료는 추가 확인이 필요하다.
 
@@ -11,7 +11,9 @@ argocd/
 ├─ bootstrap/values.yaml        # 공식 Argo CD 차트 설치값
 ├─ projects/star23-apps.yaml    # CLOUD 저장소와 앱 Namespace의 허용 범위
 ├─ applications/apps/*.yaml    # 앱 12개의 자동 동기화 설정
-└─ kustomization.yaml          # Project와 Application의 초기 등록 진입점
+├─ kustomization.yaml          # prod Project와 Application 등록
+├─ staging/                    # staging Project와 기존 이름의 Application 12개
+└─ ci/                         # 별도 적용하는 Jenkins IAM/RBAC 연결 범위
 ```
 
 앱 자체의 Deployment·Service·Ingress·ConfigMap·Secret 참조는 기존 `manifest/helm/star23-service`에서 관리한다. CA·ALB Controller·ESO·Terraform은 이 앱 프로젝트의 동기화 대상에 추가하지 않았다.
@@ -23,7 +25,8 @@ argocd/
 | Git 저장소 | `https://github.com/100-hours-a-week/KTB4-17th-CLOUD.git` |
 | 감시 브랜치 | 배포 기준 브랜치 `main` |
 | 차트 경로 | `manifest/helm/star23-service` |
-| 값 파일 | 차트 기준 `values/<릴리스>.yaml` 하나 |
+| prod 값 파일 | 차트 기준 `values/<릴리스>.yaml` 하나 |
+| staging 값 파일 | 차트 기준 `values/staging/<릴리스>.yaml` 하나 |
 | 대상 클러스터 | Argo CD가 설치된 동일 EKS (`https://kubernetes.default.svc`) |
 | 앱 Namespace | 기존 `user`, `chat`, `recommend`, `auth` |
 
@@ -96,7 +99,22 @@ BE·AI 소스 저장소 변경
 
 이미지를 ECR에 푸시하는 것만으로 배포되지는 않는다. 현재 values는 digest로 이미지를 고정하므로 CLOUD의 digest도 갱신해야 한다. 현재 BE 이미지 하나를 6개 Spring 역할이 공유하고, AI 이미지 하나를 6개 FastAPI 역할이 공유한다. 같은 이미지를 유지하는 정책이면 각 그룹의 역할 파일을 한 변경에서 함께 갱신한다.
 
-Jenkins와 GitHub Actions 모두 이 CI 단계를 담당할 수 있다. 확인한 로컬 BE·AI 저장소는 `.github/workflows/dev-cd.yml`에서 GitHub Actions로 이미지 빌드·ECR 푸시를 수행하며, `prod-cd.yml`은 기존 ECS 배포를 담당한다. 이번 변경은 이 CI를 수정하거나 CLOUD digest 갱신 단계를 자동 연결하지 않았다. 연결 시 CI에는 앱 소스·ECR 접근과 CLOUD 변경 PR 생성 권한을 주고, EKS 앱 배포는 Argo CD가 담당하도록 구성한다.
+BE·AI Jenkins는 dev에서 staging values, main에서 prod values의 tag/digest만 갱신한다. 두 환경의 Argo CD는 CLOUD/main을 추적하며 각자의 로컬 클러스터에 적용한다. Jenkins는 각 환경 Argo Application을 읽어서 rollout 완료를 기다린다. [Jenkins 연결 범위](ci/README.md).
+
+AI CI는 다섯 서비스만 함께 갱신하며 image-worker는 별도 관리한다. GitOps 코드 병합과 Jenkins credential·권한·자동 flag 활성화는 별도 단계다. 실제 자동배포 완료 여부는 Jenkins 배포 산출물로 확인한다.
+
+## staging 기존 앱의 고정 커밋 해제
+
+staging 전용 values를 CLOUD/main에 먼저 병합한다. 이 파일은 기존 staging의 이미지·리소스·ConfigMap·시크릿 참조·Ingress를 보존한다. 새 Argo CD를 만들거나 prod Argo에 원격 클러스터를 등록하지 않는다. staging context를 명시해 기존 12개 Application을 갱신한다.
+
+```sh
+kubectl --context arn:aws:eks:ap-northeast-2:975779326240:cluster/star-EKS-v3-staging kustomize argocd/staging
+kubectl --context arn:aws:eks:ap-northeast-2:975779326240:cluster/star-EKS-v3-staging apply -k argocd/staging
+```
+
+기존 live Application의 `spec.source.helm.valuesObject`가 남으면 Git values보다 우선한다. 최초 전환 시 old source를 확인한 JSON Patch로 `spec.source` 전체를 staging manifest의 source로 교체해 inline override를 제거한다. `targetRevision: main`, staging valueFiles, 기존 releaseName이 최종 source에 있는지 확인한다. 그 후 위 Kustomize 설정을 유지한다. 두 등록 진입점을 반대 환경에 적용하지 않는다.
+
+ConfigMap과 Pod template이 현재와 같으면 이 전환만으로 Pod 교체나 노드 증설이 발생하지 않는다. 새 이미지의 후속 rolling deploy에는 해당 노드 풀의 여유 용량 또는 승인된 Cluster Autoscaler 상한이 필요하다. HPA는 Pod 개수만 조절한다.
 
 ## 로컬 검증
 
