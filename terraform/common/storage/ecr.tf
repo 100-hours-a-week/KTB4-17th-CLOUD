@@ -17,7 +17,7 @@ resource "aws_ecr_repository" "ai" {
   }
 
   force_delete         = null
-  image_tag_mutability = "MUTABLE"
+  image_tag_mutability = "IMMUTABLE"
   name                 = "star23/ai"
   region               = "ap-northeast-2"
   tags                 = {}
