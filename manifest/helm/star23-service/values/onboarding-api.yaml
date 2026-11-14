@@ -55,6 +55,12 @@ configMap:
 # /** Runtime Secret
 #  * DB·인증 Secret과 Parameter Store의 Redis 참조를 onboarding-api-secret에 모아 Pod envFrom으로 주입한다.
 #  */
+env:
+  - name: AI_PERSONA_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: onboarding-api-secret
+        key: AI_PERSONA_API_KEY
 externalSecret:
   data:
   - remoteRef:
@@ -74,6 +80,11 @@ externalSecret:
       # AI의 INTERNAL_API_KEY와 같은 원본 값을 사용합니다. BE가 읽는 환경변수 이름은 유지합니다.
       property: AI_INTERNAL_API_KEY
     secretKey: AI_PRACTICE_API_KEY
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9
+      # AI의 INTERNAL_API_KEY와 같은 원본 값을 사용합니다. BE가 읽는 환경변수 이름은 유지합니다.
+      property: AI_INTERNAL_API_KEY
+    secretKey: AI_PERSONA_API_KEY
   - remoteRef:
       key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/prod/be-q1bpe9
       property: AI_PRACTICE_CALLBACK_SECRET
