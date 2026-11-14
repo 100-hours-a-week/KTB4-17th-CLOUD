@@ -65,6 +65,12 @@ configMap:
     APP_NOTIFICATION_DELIVERY_ENABLED: 'false'
     APP_NOTIFICATION_OUTBOX_WORKER_ENABLED: 'false'
   rolloutChecksumOverride: ''
+env:
+  - name: AI_PERSONA_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: onboarding-api-secret
+        key: AI_PERSONA_API_KEY
 externalSecret:
   data:
   - remoteRef:
@@ -83,6 +89,10 @@ externalSecret:
       key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/staging/be-7I1aE0
       property: AI_INTERNAL_API_KEY
     secretKey: AI_PRACTICE_API_KEY
+  - remoteRef:
+      key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/staging/be-7I1aE0
+      property: AI_INTERNAL_API_KEY
+    secretKey: AI_PERSONA_API_KEY
   - remoteRef:
       key: arn:aws:secretsmanager:ap-northeast-2:975779326240:secret:star23/staging/be-7I1aE0
       property: AI_PRACTICE_CALLBACK_SECRET
