@@ -1,0 +1,290 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "kind": "Role",
+      "metadata": {
+        "name": "jenkins-prod-direct-image-publisher",
+        "namespace": "argocd"
+      },
+      "rules": [
+        {
+          "apiGroups": [
+            "argoproj.io"
+          ],
+          "resources": [
+            "applications"
+          ],
+          "resourceNames": [
+            "auth-api",
+            "chat-ai-cleanup",
+            "chat-ai-practice",
+            "chat-ai-simulation",
+            "chat-api",
+            "chat-socket",
+            "image-worker",
+            "onboarding-api",
+            "onboarding-face-certify-ai",
+            "onboarding-persona-ai",
+            "recommend-api",
+            "user-api"
+          ],
+          "verbs": [
+            "get",
+            "patch"
+          ]
+        }
+      ]
+    },
+    {
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "kind": "RoleBinding",
+      "metadata": {
+        "name": "jenkins-prod-direct-image-publisher",
+        "namespace": "argocd"
+      },
+      "subjects": [
+        {
+          "kind": "Group",
+          "name": "star23-jenkins-observers",
+          "apiGroup": "rbac.authorization.k8s.io"
+        }
+      ],
+      "roleRef": {
+        "kind": "Role",
+        "name": "jenkins-prod-direct-image-publisher",
+        "apiGroup": "rbac.authorization.k8s.io"
+      }
+    },
+    {
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "kind": "Role",
+      "metadata": {
+        "name": "jenkins-prod-direct-rollout-observer",
+        "namespace": "auth"
+      },
+      "rules": [
+        {
+          "apiGroups": [
+            "apps"
+          ],
+          "resources": [
+            "deployments"
+          ],
+          "resourceNames": [
+            "auth-api"
+          ],
+          "verbs": [
+            "get"
+          ]
+        },
+        {
+          "apiGroups": [
+            ""
+          ],
+          "resources": [
+            "pods"
+          ],
+          "verbs": [
+            "list"
+          ]
+        }
+      ]
+    },
+    {
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "kind": "RoleBinding",
+      "metadata": {
+        "name": "jenkins-prod-direct-rollout-observer",
+        "namespace": "auth"
+      },
+      "subjects": [
+        {
+          "kind": "Group",
+          "name": "star23-jenkins-observers",
+          "apiGroup": "rbac.authorization.k8s.io"
+        }
+      ],
+      "roleRef": {
+        "kind": "Role",
+        "name": "jenkins-prod-direct-rollout-observer",
+        "apiGroup": "rbac.authorization.k8s.io"
+      }
+    },
+    {
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "kind": "Role",
+      "metadata": {
+        "name": "jenkins-prod-direct-rollout-observer",
+        "namespace": "user"
+      },
+      "rules": [
+        {
+          "apiGroups": [
+            "apps"
+          ],
+          "resources": [
+            "deployments"
+          ],
+          "resourceNames": [
+            "user-api",
+            "onboarding-api",
+            "onboarding-persona-ai",
+            "onboarding-face-certify-ai",
+            "image-worker"
+          ],
+          "verbs": [
+            "get"
+          ]
+        },
+        {
+          "apiGroups": [
+            ""
+          ],
+          "resources": [
+            "pods"
+          ],
+          "verbs": [
+            "list"
+          ]
+        }
+      ]
+    },
+    {
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "kind": "RoleBinding",
+      "metadata": {
+        "name": "jenkins-prod-direct-rollout-observer",
+        "namespace": "user"
+      },
+      "subjects": [
+        {
+          "kind": "Group",
+          "name": "star23-jenkins-observers",
+          "apiGroup": "rbac.authorization.k8s.io"
+        }
+      ],
+      "roleRef": {
+        "kind": "Role",
+        "name": "jenkins-prod-direct-rollout-observer",
+        "apiGroup": "rbac.authorization.k8s.io"
+      }
+    },
+    {
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "kind": "Role",
+      "metadata": {
+        "name": "jenkins-prod-direct-rollout-observer",
+        "namespace": "chat"
+      },
+      "rules": [
+        {
+          "apiGroups": [
+            "apps"
+          ],
+          "resources": [
+            "deployments"
+          ],
+          "resourceNames": [
+            "chat-api",
+            "chat-socket",
+            "chat-ai-practice",
+            "chat-ai-simulation",
+            "chat-ai-cleanup"
+          ],
+          "verbs": [
+            "get"
+          ]
+        },
+        {
+          "apiGroups": [
+            ""
+          ],
+          "resources": [
+            "pods"
+          ],
+          "verbs": [
+            "list"
+          ]
+        }
+      ]
+    },
+    {
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "kind": "RoleBinding",
+      "metadata": {
+        "name": "jenkins-prod-direct-rollout-observer",
+        "namespace": "chat"
+      },
+      "subjects": [
+        {
+          "kind": "Group",
+          "name": "star23-jenkins-observers",
+          "apiGroup": "rbac.authorization.k8s.io"
+        }
+      ],
+      "roleRef": {
+        "kind": "Role",
+        "name": "jenkins-prod-direct-rollout-observer",
+        "apiGroup": "rbac.authorization.k8s.io"
+      }
+    },
+    {
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "kind": "Role",
+      "metadata": {
+        "name": "jenkins-prod-direct-rollout-observer",
+        "namespace": "recommend"
+      },
+      "rules": [
+        {
+          "apiGroups": [
+            "apps"
+          ],
+          "resources": [
+            "deployments"
+          ],
+          "resourceNames": [
+            "recommend-api"
+          ],
+          "verbs": [
+            "get"
+          ]
+        },
+        {
+          "apiGroups": [
+            ""
+          ],
+          "resources": [
+            "pods"
+          ],
+          "verbs": [
+            "list"
+          ]
+        }
+      ]
+    },
+    {
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "kind": "RoleBinding",
+      "metadata": {
+        "name": "jenkins-prod-direct-rollout-observer",
+        "namespace": "recommend"
+      },
+      "subjects": [
+        {
+          "kind": "Group",
+          "name": "star23-jenkins-observers",
+          "apiGroup": "rbac.authorization.k8s.io"
+        }
+      ],
+      "roleRef": {
+        "kind": "Role",
+        "name": "jenkins-prod-direct-rollout-observer",
+        "apiGroup": "rbac.authorization.k8s.io"
+      }
+    }
+  ]
+}

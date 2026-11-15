@@ -1,0 +1,13 @@
+# Jenkins direct Argo deployment
+
+`dev` → staging and `main` → production for BE and AI use four fixed Jenkins coordinators. Source CI runs tests and publishes an immutable ECR image; the protected coordinator updates only the allowed Argo Application image parameters and verifies actual Ready Pod digests. CLOUD stores the Helm chart and environment values. This path requires no Jenkins CLOUD write credential or image-version commit.
+
+Reviewed runtime files are in `common/` and `jenkins/`. Historical staging helper fixtures support the compatibility tests; the active deployment entry point is `deploy_release.py`. Install the helper and the six Jenkins files flattened in root-owned `/opt/star23-direct-cd`; keep the existing protected `/opt/star23-staging-cd/bin/kubectl`. Follow `jenkins/README.md` for fixed jobs, provenance, publisher proof, installation and acceptance. A local source edit does not update the live protected payload automatically. Review, validate hashes, install as the existing operator, then apply the bootstrap while Jenkins is idle. The bootstrap does not restart Jenkins or replay old builds.
+
+The operator must prepare `/var/lib/jenkins/deployments/{staging,prod}/{be,ai}` as Jenkins-owned directories (0750), preserving existing receipts, plus root-owned migration compatibility approvals under `/opt/star23-direct-cd/contracts`. Populate approvals only from actual source/schema evidence; never infer database compatibility from Pod health. New or changed migration files block before any Argo patch. There is no automatic database DDL or old-image rollback.
+
+`production-direct-cd-rbac.json` binds only the existing CI observer group to twelve named Applications (get/patch), their named Deployments (get), and Pod collections in four namespaces (list). Kubernetes RBAC cannot restrict Application patch to image fields; the protected helper enforces that scope. No IAM key, new identity, Secret, Pod exec or Deployment write grant is included.
+
+Run helper tests with `python3 -B -m unittest discover -s common -p 'test_*.py' -v` and Jenkins tests with `python3 -B -m unittest discover -s jenkins/tests -v`. Groovy tests need a local Groovy runtime (`GROOVY_JAR`). Local boundary tests supplement actual Jenkins plugin/model validation and four successful end-to-end deployment paths.
+
+The single CPU node holds face certification and image-worker. Their staging and production values use maxSurge=0/maxUnavailable=1 so a replacement can fit without node expansion. Each affected feature can be unavailable until its replacement is Ready; the two interruptions can overlap. Strategy-only configuration changes preserve the existing Pod template.

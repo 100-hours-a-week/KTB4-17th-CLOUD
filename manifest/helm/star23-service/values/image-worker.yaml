@@ -10,6 +10,11 @@ configMap:
     LLM_MODEL_V2: google/gemini-3.1-flash-lite
     LLM_MODEL: google/gemini-3.1-flash-lite
 containerPort: 8000
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 0
+    maxUnavailable: 1
 # /** Runtime Secret
 #  * 공유 Secret의 AI 속성과 모델 키를 image-worker-secret으로 매핑해 Pod envFrom에 주입한다.
 #  */
