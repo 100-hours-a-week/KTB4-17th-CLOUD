@@ -96,9 +96,9 @@ externalSecret:
     secretKey: CLIENT_ID
   parameterStoreEnabled: true
 image:
-  digest: sha256:168a8698929b20ac57b334dc8e853d5081006b4f949e35a6122232601263c1e3
+  digest: sha256:929f873c9a263757b0f14c9a66eb4be29dcb658c1cf888d2044bf6baaf476453
   repository: 975779326240.dkr.ecr.ap-northeast-2.amazonaws.com/star23/be
-  tag: ''
+  tag: 'dev-3a3ca3e3ae4f956eedcc4087d524bf4017ac1221'
 ingress:
   certificateArn: arn:aws:acm:ap-northeast-2:975779326240:certificate/13083ecf-f79a-4b35-b17f-5e134d1eb6b8
   enabled: true
