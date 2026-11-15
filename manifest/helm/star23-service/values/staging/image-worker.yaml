@@ -73,3 +73,8 @@ ingress:
   host: v3-staging.star23sharp.com
   listenPorts: '[{"HTTP":80},{"HTTPS":443}]'
 replicaCount: 1
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 0
+    maxUnavailable: 1

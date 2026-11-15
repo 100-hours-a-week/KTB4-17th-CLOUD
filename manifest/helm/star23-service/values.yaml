@@ -3,6 +3,7 @@
 #  */
 nameOverride: ""
 replicaCount: 1
+strategy: {}
 
 # /** Autoscaling
 #  * 활성화하면 HPA가 CPU 사용률로 Pod 수를 조절하고 Deployment의 replicaCount는 적용하지 않는다.
